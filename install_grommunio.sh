@@ -26,7 +26,7 @@ echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-sel
 DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php7.4-fpm curl
 
 echo "## SET HOSTNAME ##"
-echo "$DOMAIN" >> /etc/hostname
+echo "$DOMAIN" > /etc/hostname
 
 echo "## CREATE PHP7.4-FPM RUN DIR ##"
 mkdir -p /run/php-fpm
