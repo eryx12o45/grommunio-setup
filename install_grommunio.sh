@@ -28,9 +28,6 @@ DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redi
 echo "## SET HOSTNAME ##"
 echo "$DOMAIN" > /etc/hostname
 
-echo "## CREATE PHP7.4-FPM RUN DIR ##"
-mkdir -p /run/php-fpm
-
 echo "## CREATE USERS AND GROUPS ##"
 useradd gromox
 useradd system-user-groweb
