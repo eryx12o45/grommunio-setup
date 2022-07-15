@@ -23,7 +23,7 @@ apt update
 apt upgrade -y
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php7.4-fpm curl
+DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php7.4-fpm curl fetchmail
 
 echo "## SET HOSTNAME ##"
 echo "$DOMAIN" > /etc/hostname
