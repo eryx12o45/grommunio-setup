@@ -3,10 +3,11 @@
 ########## VARIABLES ##########
 DBHOST='localhost'
 DBUSER='grommunio'
-DBPASSWD='Test1234!' # <TODO CHANGE THIS>
+DBPASSWD="$(openssl rand -base64 12)"
 DBNAME='grommunio'
-ADMINPASSWD='Test1234!' # <TODO CHANGE THIS>
-DOMAIN='example.com' # <TODO CHANGE THIS>
+ADMINPASSWD="$(openssl rand -base64 12)"
+[[ $- == *i* ]] && read -e -p " Enter Hostname:" -i "$HOSTNAME" DOMAINNAME
+DOMAIN="${$(hostname -f):-$NAME}"
 CREATE_SELF_SIGNED_SSL='true'
 SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
@@ -26,19 +27,19 @@ echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-sel
 DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php7.4-fpm curl fetchmail
 
 echo "## SET HOSTNAME ##"
-echo "$DOMAIN" > /etc/hostname
+hostnamectl set-hostname $DOMAIN
 
 echo "## CREATE USERS AND GROUPS ##"
-useradd gromox
-useradd system-user-groweb
-useradd grommunio-web
-groupadd grommunio
+useradd -r gromox
+useradd -r system-user-groweb
+useradd -r grommunio-web
+groupadd -r grommunio
 
 echo "## INSTALL GROMMUNIO PACKAGES ##"
 apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb grommunio-web grommunio-admin-common
 
 echo "## CORRECT GROMMUNIO WEB FPM CONFIG ##"
-sed -i s/"listen = \/run\/php-fpm\/grommunio-web"/"listen = \/run\/php\/grommunio-web"/g /etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf
+sed -i 's|listen = /run/php-fpm/grommunio-web|listen = /run/php/grommunio-web|g' /etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf
 
 echo "## ACTIVATE PHP7.4-FPM ##"
 systemctl enable --now php7.4-fpm
