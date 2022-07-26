@@ -38,8 +38,8 @@ groupadd -r grommunio
 echo "## INSTALL GROMMUNIO PACKAGES ##"
 apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb grommunio-web grommunio-admin-common
 
-echo "## CORRECT GROMMUNIO WEB FPM CONFIG ##"
-sed -i 's|listen = /run/php-fpm/grommunio-web|listen = /run/php/grommunio-web|g' /etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf
+echo "## CREATE PHP-FPM RUN FOLDER ##"
+echo "d /run/php-fpm 0755 www-data gromox - -" > /etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create
 
 echo "## ACTIVATE PHP7.4-FPM ##"
 systemctl enable --now php7.4-fpm
