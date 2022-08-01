@@ -40,7 +40,7 @@ groupadd -r grommunio
 groupadd -r nginx
 
 echo "## INSTALL GROMMUNIO PACKAGES ##"
-apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb system-user-grosync grommunio-web grommunio-admin-common grommunio-sync
+apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb system-user-grosync system-user-grodav grommunio-web grommunio-admin-common grommunio-sync grommunio-dav
 
 echo "## CREATE PHP-FPM RUN FOLDER ##"
 echo "d /run/php-fpm 0755 www-data gromox - -" > /etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create
@@ -210,7 +210,20 @@ echo "	compress" > /etc/logrotate.d/grommunio-sync.lr
 echo "	rotate 4" > /etc/logrotate.d/grommunio-sync.lr
 echo "}" > /etc/logrotate.d/grommunio-sync.lr
 
-echo "## ENABLE GROMMUNIO_SYNC ##"
+echo "## ENABLE GROMMUNIO-SYNC ##"
 ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/
+systemctl restart php7.4-fpm.service
+systemctl restart nginx.service
+
+echo "## CONFIGURE GROMMUNIO-DAV LOGROTATE ##"
+echo "/var/log/grommunio-dav/*.log {" > /etc/logrotate.d/grommunio-dav.lr
+echo "	size 1k" > /etc/logrotate.d/grommunio-dav.lr
+echo "	su grodav grodav" > /etc/logrotate.d/grommunio-dav.lr
+echo "	compress" > /etc/logrotate.d/grommunio-dav.lr
+echo "	rotate 4" > /etc/logrotate.d/grommunio-dav.lr
+echo "}" > /etc/logrotate.d/grommunio-dav.lr
+
+echo "## ENABLE GROMMUNIO-DAV ##"
+ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/
 systemctl restart php7.4-fpm.service
 systemctl restart nginx.service
