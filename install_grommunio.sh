@@ -27,7 +27,7 @@ apt update
 apt upgrade -y
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis php7.4 php7.4-fpm curl fetchmail
+DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis php7.4 php7.4-fpm curl fetchmail rspamd
 
 echo "## SET HOSTNAME ##"
 hostnamectl set-hostname $DOMAIN
@@ -202,26 +202,10 @@ systemctl enable --now redis@grommunio.service
 echo "## CONFIGURE GROMUNIO-SYNC TIMEZONE ##"
 sed -i s/"define('TIMEZONE', '')"/"define('TIMEZONE', '$GROMMUNIO_TIMEZONE')"/g /etc/grommunio-sync/grommunio-sync.conf.php
 
-echo "## CONFIGURE GROMMUNIO-SYNC LOGROTATE ##"
-echo "/var/log/grommunio-sync/*.log {" > /etc/logrotate.d/grommunio-sync.lr
-echo "	size 1k" > /etc/logrotate.d/grommunio-sync.lr
-echo "	su grosync grosync" > /etc/logrotate.d/grommunio-sync.lr
-echo "	compress" > /etc/logrotate.d/grommunio-sync.lr
-echo "	rotate 4" > /etc/logrotate.d/grommunio-sync.lr
-echo "}" > /etc/logrotate.d/grommunio-sync.lr
-
 echo "## ENABLE GROMMUNIO-SYNC ##"
 ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/
 systemctl restart php7.4-fpm.service
 systemctl restart nginx.service
-
-echo "## CONFIGURE GROMMUNIO-DAV LOGROTATE ##"
-echo "/var/log/grommunio-dav/*.log {" > /etc/logrotate.d/grommunio-dav.lr
-echo "	size 1k" > /etc/logrotate.d/grommunio-dav.lr
-echo "	su grodav grodav" > /etc/logrotate.d/grommunio-dav.lr
-echo "	compress" > /etc/logrotate.d/grommunio-dav.lr
-echo "	rotate 4" > /etc/logrotate.d/grommunio-dav.lr
-echo "}" > /etc/logrotate.d/grommunio-dav.lr
 
 echo "## ENABLE GROMMUNIO-DAV ##"
 ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/
