@@ -7,10 +7,12 @@ DBPASSWD="$(openssl rand -base64 12)"
 DBNAME='grommunio'
 ADMINPASSWD="$(openssl rand -base64 12)"
 [[ $- == *i* ]] && read -e -p " Enter Hostname:" -i "$HOSTNAME" DOMAINNAME
-DOMAIN="${$(hostname -f):-$NAME}"
+DOMAIN="${$(hostname -f):-$DOMAINNAME}"
 CREATE_SELF_SIGNED_SSL='true'
 SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
+GROMOX_HTTP_PORT=10080
+GROMOX_HTTP_SSL_PORT=10443
 
 ########## INSTALL ##########
 echo "## ADD GROMMUNIO APT REPO ##"
