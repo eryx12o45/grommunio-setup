@@ -13,6 +13,7 @@ SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
 GROMOX_HTTP_PORT=10080
 GROMOX_HTTP_SSL_PORT=10443
+GROMMUNIO_TIMEZONE="Europe/Berlin"
 
 ########## INSTALL ##########
 echo "## ADD GROMMUNIO APT REPO ##"
@@ -26,7 +27,7 @@ apt update
 apt upgrade -y
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php7.4-fpm curl fetchmail
+DEBIAN_FRONTEND=noninteractive apt install -y mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis php7.4 php7.4-fpm curl fetchmail
 
 echo "## SET HOSTNAME ##"
 hostnamectl set-hostname $DOMAIN
@@ -36,9 +37,10 @@ useradd -r gromox
 useradd -r system-user-groweb
 useradd -r grommunio-web
 groupadd -r grommunio
+groupadd -r nginx
 
 echo "## INSTALL GROMMUNIO PACKAGES ##"
-apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb grommunio-web grommunio-admin-common
+apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb system-user-grosync grommunio-web grommunio-admin-common grommunio-sync
 
 echo "## CREATE PHP-FPM RUN FOLDER ##"
 echo "d /run/php-fpm 0755 www-data gromox - -" > /etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create
@@ -114,7 +116,7 @@ echo "pop3_private_key_path=$SSL_KEY_FILE_PATH" >> /etc/gromox/pop3.cfg
 echo "pop3_force_stls=true" >> /etc/gromox/pop3.cfg
 
 #echo "## ACTIVATE GROMOX IMAP AND POP3 ##"
-# systemctl enable --now gromox-imap gromox-pop3
+systemctl enable --now gromox-imap gromox-pop3
 
 echo "## CONFIGURE GROMMUNIO ADMIN API ##"
 echo "DB:" > /etc/grommunio-admin-api/conf.d/database.yaml
@@ -196,3 +198,19 @@ echo "WantedBy=multi-user.target redis.target" >> /etc/systemd/system/redis@grom
 
 systemctl daemon-reload
 systemctl enable --now redis@grommunio.service
+
+echo "## CONFIGURE GROMUNIO-SYNC TIMEZONE ##"
+sed -i s/"define('TIMEZONE', '')"/"define('TIMEZONE', '$GROMMUNIO_TIMEZONE')"/g /etc/grommunio-sync/grommunio-sync.conf.php
+
+echo "## CONFIGURE GROMMUNIO-SYNC LOGROTATE ##"
+echo "/var/log/grommunio-sync/*.log {" > /etc/logrotate.d/grommunio-sync.lr
+echo "	size 1k" > /etc/logrotate.d/grommunio-sync.lr
+echo "	su grosync grosync" > /etc/logrotate.d/grommunio-sync.lr
+echo "	compress" > /etc/logrotate.d/grommunio-sync.lr
+echo "	rotate 4" > /etc/logrotate.d/grommunio-sync.lr
+echo "}" > /etc/logrotate.d/grommunio-sync.lr
+
+echo "## ENABLE GROMMUNIO_SYNC ##"
+ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/
+systemctl restart php7.4-fpm.service
+systemctl restart nginx.service
