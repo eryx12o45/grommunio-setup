@@ -48,6 +48,11 @@ echo "d /run/php-fpm 0755 www-data gromox - -" > /etc/tmpfiles.d/run-php-fpm.con
 echo "## ACTIVATE PHP7.4-FPM ##"
 systemctl enable --now php7.4-fpm
 
+echo "## ENABLE GROMMUNIO-WEB ##"
+ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-web.conf /etc/php/7.4/fpm/pool.d/
+systemctl restart php7.4-fpm.service
+systemctl restart nginx.service
+
 echo "## CREATE DB AND USER ##"
 mysql -h $DBHOST -e "CREATE DATABASE IF NOT EXISTS grommunio;"
 mysql -h $DBHOST -e "GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASSWD';"
