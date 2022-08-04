@@ -5,9 +5,14 @@ DBHOST='localhost'
 DBUSER='grommunio'
 DBPASSWD="$(openssl rand -base64 12)"
 DBNAME='grommunio'
-ADMINPASSWD="$(openssl rand -base64 12)"
-[[ $- == *i* ]] && read -e -p " Enter Hostname:" -i "$HOSTNAME" DOMAINNAME
-DOMAIN="${$(hostname -f):-$DOMAINNAME}"
+ADMINPASSWD="$(openssl rand -base64 12)" # SET TO "" to enable asking for password on prompt
+if [ "$ADMINPASSWD" == "" ]; then
+  read -e -p " Enter admin password: " ADMINPASSWD
+fi
+if [ "${-#*i}" == "$-" ]; then
+        read -e -p "Enter Hostname: " -i "$HOSTNAME" DOMAINNAME
+fi
+export DOMAIN="${HOSTNAME:-DOMAINNAME}"
 CREATE_SELF_SIGNED_SSL='true'
 SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
