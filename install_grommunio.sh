@@ -1,9 +1,6 @@
 #!/bin/bash
 
 ########## VARIABLES ##########
-DBHOST='localhost'
-DBUSER='grommunio'
-DBNAME='grommunio'
 SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
 GROMOX_HTTP_PORT=10080
@@ -55,12 +52,36 @@ if [ "$UID" = "0" ]; then
     ADMINPASSWD="$(openssl rand -base64 12)"
   fi
   echo ""
+  echo "+-------------------------+"
+  echo "| Grommunio Database Host |"
+  echo "+-------------------------+"
+  read -e -p " Enter database host (empty for localhost): " DBHOST
+  if [ "$DBHOST" == "" ]; then
+    DBHOST="localhost"
+  fi
+  echo ""
+  echo "+-------------------------+"
+  echo "| Grommunio Database User |"
+  echo "+-------------------------+"
+  read -e -p " Enter database user (empty for grommunio): " DBUSER
+  if [ "$DBUSER" == "" ]; then
+    DBUSER="grommunio"
+  fi
+  echo ""
   echo "+-------------------------------+"
   echo "| Grommunio Database Password |"
   echo "+-----------------------------+"
   read -e -p " Enter database password (empty for random password): " DBPASSWD
   if [ "$DBPASSWD" == "" ]; then
     DBPASSWD="$(openssl rand -base64 12)"
+  fi
+  echo ""
+  echo "+-------------------------+"
+  echo "| Grommunio Database Name |"
+  echo "+-------------------------+"
+  read -e -p " Enter database name (empty for grommunio): " DBNAME
+  if [ "$DBNAME" == "" ]; then
+    DBNAME="grommunio"
   fi
   echo ""
 
