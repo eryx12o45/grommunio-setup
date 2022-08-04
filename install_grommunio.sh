@@ -3,9 +3,7 @@
 ########## VARIABLES ##########
 DBHOST='localhost'
 DBUSER='grommunio'
-DBPASSWD="$(openssl rand -base64 12)"
 DBNAME='grommunio'
-CREATE_SELF_SIGNED_SSL='true'
 SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
 GROMOX_HTTP_PORT=10080
@@ -55,6 +53,14 @@ if [ "$UID" = "0" ]; then
   read -e -p " Enter admin password (empty for random password): " ADMINPASSWD
   if [ "$ADMINPASSWD" == "" ]; then
     ADMINPASSWD="$(openssl rand -base64 12)"
+  fi
+  echo ""
+  echo "+-------------------------------+"
+  echo "| Grommunio Database Password |"
+  echo "+-----------------------------+"
+  read -e -p " Enter database password (empty for random password): " DBPASSWD
+  if [ "$DBPASSWD" == "" ]; then
+    DBPASSWD="$(openssl rand -base64 12)"
   fi
   echo ""
 
@@ -130,11 +136,6 @@ if [ "$UID" = "0" ]; then
   mysql -h $DBHOST -e "CREATE DATABASE IF NOT EXISTS grommunio;"
   mysql -h $DBHOST -e "GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASSWD';"
 
-  if [ "$CREATE_SELF_SIGNED_SSL" == "true" ]; then
-    echo "## CREATE SELF-SIGNED SSL CERTIFICATE ##"
-    openssl req -new -x509 -days 365 -nodes -keyout /etc/ssl/private/server.key -out /etc/ssl/private/server.crt -subj "/CN=$DOMAIN"
-  fi
-
   echo "## FIX SSL FOLDER RIGHTS ##"
   chmod 755 /etc/ssl/private
   chgrp ssl-cert /etc/ssl/private/*
@@ -149,7 +150,7 @@ if [ "$UID" = "0" ]; then
 
   echo "## CREATE GROMOX DB CONFIG ##"
   OUTFILE="/etc/gromox/pop3.cfg"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 mysql_username=$DBUSER
 mysql_password=$DBPASSWD
 mysql_dbname=$DBNAME
@@ -164,7 +165,7 @@ EOF
 
   echo "## CREATE GROMOX HTTP CONFIG ##"
   OUTFILE="/etc/gromox/pop3.cfg"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 listen_port=$GROMOX_HTTP_PORT
 listen_ssl_port=$GROMOX_HTTP_SSL_PORT
 http_support_ssl=yes
@@ -174,7 +175,7 @@ EOF
 
   echo "## CREATE GROMOX AUTODISCOVER CONFIG ##"
   OUTFILE="/etc/gromox/pop3.cfg"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 [database]
 host=$DBHOST
 username=$DBUSER
@@ -191,7 +192,7 @@ EOF
 
   echo "## CONFIGURE GROMOX IMAP ##"
   OUTFILE="/etc/gromox/pop3.cfg"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 listen_ssl_port=993
 imap_support_starttls=true
 imap_certificate_path=$SSL_CERT_FILE_PATH
@@ -201,7 +202,7 @@ EOF
 
   echo "## CONFIGURE GROMOX POP3 ##"
   OUTFILE="/etc/gromox/pop3.cfg"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 listen_ssl_port=995
 pop3_support_stls=true
 pop3_certificate_path=$SSL_CERT_FILE_PATH
@@ -214,7 +215,7 @@ EOF
 
   echo "## CONFIGURE GROMMUNIO ADMIN API ##"
   OUTFILE="/etc/grommunio-admin-api/conf.d/database.yaml"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 DB:
   host: '$DBHOST'
   user: '$DBUSER'
@@ -255,7 +256,7 @@ EOF
 
   echo "## CREATE GROMOX POSTFIX CONFIGS ##"
   OUTFILE="/etc/postfix/g-alias.cf"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 user = $DBUSER
 password = $DBPASSWD
 hosts = $DBHOST
@@ -264,7 +265,7 @@ query = SELECT mainname FROM aliases WHERE aliasname='%s'
 EOF
 
   OUTFILE="/etc/postfix/g-virt.cf"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 user = $DBUSER
 password = $DBPASSWD
 hosts = $DBHOST
@@ -282,7 +283,7 @@ EOF
   systemctl disable --now redis-server.service
 
   OUTFILE="/etc/systemd/system/redis@grommunio.service"
-  cat << EOF > $OUTFILE
+  cat <<EOF >$OUTFILE
 [Unit]
 Description=Redis instance: %i
 After=network.target
@@ -332,7 +333,7 @@ EOF
 
 ########## END NOT ROOT ##########
 else
-  USER=`whoami`
+  USER=$(whoami)
   echo "You are not ROOT user"
   echo ""
   echo "Your User is ${USER}"
