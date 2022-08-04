@@ -13,7 +13,6 @@ SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
 SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
 GROMOX_HTTP_PORT=10080
 GROMOX_HTTP_SSL_PORT=10443
-GROMMUNIO_TIMEZONE="Europe/Berlin"
 
 ########## INSTALL ##########
 echo "## ADD GROMMUNIO APT REPO ##"
@@ -38,6 +37,10 @@ useradd -r system-user-groweb
 useradd -r grommunio-web
 groupadd -r grommunio
 groupadd -r nginx
+usermod -a -G ssl-cert gromox
+usermod -a -G ssl-cert grodav
+usermod -a -G ssl-cert grosync
+usermod -a -G ssl-cert groweb
 
 echo "## INSTALL GROMMUNIO PACKAGES ##"
 apt install -y grommunio-common gromox grommunio-admin-api grommunio-admin-web system-user-groweb system-user-grosync system-user-grodav grommunio-web grommunio-admin-common grommunio-sync grommunio-dav
@@ -64,7 +67,8 @@ fi
 
 echo "## FIX SSL FOLDER RIGHTS ##"
 chmod 755 /etc/ssl/private
-chmod 644 /etc/ssl/private/*
+chgrp ssl-cert /etc/ssl/private/*
+chmod 640 /etc/ssl/private/*
 
 echo "## CREATE NGINX SSL CONFIG ##"
 echo "ssl_certificate $SSL_CERT_FILE_PATH;" > /etc/grommunio-common/nginx/ssl_certificate.conf
@@ -203,9 +207,6 @@ echo "WantedBy=multi-user.target redis.target" >> /etc/systemd/system/redis@grom
 
 systemctl daemon-reload
 systemctl enable --now redis@grommunio.service
-
-echo "## CONFIGURE GROMUNIO-SYNC TIMEZONE ##"
-sed -i s/"define('TIMEZONE', '')"/"define('TIMEZONE', '$GROMMUNIO_TIMEZONE')"/g /etc/grommunio-sync/grommunio-sync.conf.php
 
 echo "## ENABLE GROMMUNIO-SYNC ##"
 ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/
