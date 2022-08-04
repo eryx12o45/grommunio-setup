@@ -20,9 +20,9 @@ if [ "$UID" = "0" ]; then
   read -p " Subdomain Name (SUBDOMAIN.example.com) ? " SUBDOMAIN
   read -p " Domainname (subdomain.EXAMPLE.COM) ? " DOMAIN
   echo ""
-  echo "+----------------------------------+"
-  echo "| SSL Self Signed or Let's Encrypt |"
-  echo "+----------------------------------+"
+  echo "+-------------------------------------------------+"
+  echo "| SSL Self Signed, Let's Encrypt or other sources |"
+  echo "+-------------------------------------------------+"
   read -p " self, lets, other ? [lets] " SSL
   if [ "$SSL" = "" ] || [ "$SSL" = "lets" ]; then
     SSL="lets"
