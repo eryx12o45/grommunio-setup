@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ########## VARIABLES ##########
-SSL_CERT_FILE_PATH='/etc/ssl/private/server.crt'
-SSL_KEY_FILE_PATH='/etc/ssl/private/server.key'
+SSL_CERT_FILE_PATH='/etc/ssl/certs/server.crt'
+SSL_KEY_FILE_PATH='/etc/ssl/certs/server.key'
 GROMOX_HTTP_PORT=10080
 GROMOX_HTTP_SSL_PORT=10443
 
@@ -13,7 +13,8 @@ if [ "$UID" = "0" ]; then
   echo "| Hostname for Grommunio Server |"
   echo "+--------------------------------+"
   read -p " Subdomain Name (SUBDOMAIN.example.com) ? " SUBDOMAIN
-  read -p " Domainname (subdomain.EXAMPLE.COM) ? " DOMAIN
+  read -p " Domain Name (subdomain.EXAMPLE.COM) ? " DOMAIN
+  FQDN=$SUBDOMAIN.$DOMAIN
   echo ""
   echo "+-------------------------------------------------+"
   echo "| SSL Self Signed, Let's Encrypt or other sources |"
@@ -23,13 +24,13 @@ if [ "$UID" = "0" ]; then
     SSL="lets"
     echo ""
     echo "+------------------------------------------------+"
-    echo "| E-Mail Adresss for Let's Excrypt Notifications |"
+    echo "| E-Mail Address for Let's Encrypt Notifications |"
     echo "+------------------------------------------------+"
-    read -p " Mail-Adresss ? " MAIL
+    read -p " Mail-Address ? " MAIL
   fi
   echo ""
   echo "--------------------------------------------------"
-  echo " FQDN: $SUBDOMAIN.$DOMAIN"
+  echo " FQDN: $FQDN"
   echo " SSL: $SSL"
   if ! [ "$MAIL" = "" ]; then
     echo " Mail: $MAIL"
@@ -101,7 +102,7 @@ if [ "$UID" = "0" ]; then
 
   echo "## CREATE SSL ##"
   if [ "$SSL" == "lets" ]; then
-    mkdir -p /etc/letsencrypt/live/$SUBDOMAIN.$DOMAIN
+    mkdir -p "/etc/letsencrypt/live/$SUBDOMAIN.$DOMAIN"
     echo ""
     echo " Let's Encrypt will request SSL for the following Names:"
     echo " $SUBDOMAIN.$DOMAIN + autodiscover.$DOMAIN "
@@ -126,7 +127,7 @@ if [ "$UID" = "0" ]; then
   fi
 
   echo "## SET HOSTNAME ##"
-  hostnamectl set-hostname $DOMAIN
+  hostnamectl set-hostname "$DOMAIN"
 
   echo "## CREATE USERS AND GROUPS ##"
   useradd -r gromox
@@ -156,11 +157,6 @@ if [ "$UID" = "0" ]; then
   echo "## CREATE DB AND USER ##"
   mysql -h $DBHOST -e "CREATE DATABASE IF NOT EXISTS grommunio;"
   mysql -h $DBHOST -e "GRANT ALL ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASSWD';"
-
-  echo "## FIX SSL FOLDER RIGHTS ##"
-  chmod 755 /etc/ssl/private
-  chgrp ssl-cert /etc/ssl/private/*
-  chmod 640 /etc/ssl/private/*
 
   echo "## CREATE NGINX SSL CONFIG ##"
   echo "ssl_certificate $SSL_CERT_FILE_PATH;" >/etc/grommunio-common/nginx/ssl_certificate.conf
@@ -195,14 +191,15 @@ http_private_key_path=$SSL_KEY_FILE_PATH
 EOF
 
   echo "## CREATE GROMOX AUTODISCOVER CONFIG ##"
-  OUTFILE="/etc/gromox/autodiscover.cfg"
+  OUTFILE="/etc/gromox/autodiscover.ini"
   cat <<EOF >$OUTFILE
 [database]
 host=$DBHOST
 username=$DBUSER
 password=$DBPASSWD
 dbname=$DBNAME
-hostname=$DOMAIN
+[exchange]
+hostname=$FQDN
 EOF
 
   echo "## ACTIVATE GROMOX HTTP SERVICE ##"
@@ -245,7 +242,7 @@ DB:
 EOF
 
   echo "## SET GROMMUNIO ADMIN PASSWORD ##"
-  grommunio-admin passwd -p $ADMINPASSWD
+  grommunio-admin passwd -p "$ADMINPASSWD"
 
   echo "## SET CORRECT FOLDER RIGHTS FOR GROMMUNIO ADMIN API ##"
   chown root:gromox /etc/gromox
