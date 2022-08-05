@@ -170,7 +170,7 @@ if [ "$UID" = "0" ]; then
   rm -f /etc/nginx/sites-enabled/default
 
   echo "## CREATE GROMOX DB CONFIG ##"
-  OUTFILE="/etc/gromox/pop3.cfg"
+  OUTFILE="/etc/gromox/mysql_adaptor.cfg"
   cat <<EOF >$OUTFILE
 mysql_username=$DBUSER
 mysql_password=$DBPASSWD
@@ -185,7 +185,7 @@ EOF
   systemctl enable --now gromox-event gromox-timer
 
   echo "## CREATE GROMOX HTTP CONFIG ##"
-  OUTFILE="/etc/gromox/pop3.cfg"
+  OUTFILE="/etc/gromox/http.cfg"
   cat <<EOF >$OUTFILE
 listen_port=$GROMOX_HTTP_PORT
 listen_ssl_port=$GROMOX_HTTP_SSL_PORT
@@ -195,7 +195,7 @@ http_private_key_path=$SSL_KEY_FILE_PATH
 EOF
 
   echo "## CREATE GROMOX AUTODISCOVER CONFIG ##"
-  OUTFILE="/etc/gromox/pop3.cfg"
+  OUTFILE="/etc/gromox/autodiscover.cfg"
   cat <<EOF >$OUTFILE
 [database]
 host=$DBHOST
@@ -212,7 +212,7 @@ EOF
   systemctl enable --now gromox-midb gromox-zcore
 
   echo "## CONFIGURE GROMOX IMAP ##"
-  OUTFILE="/etc/gromox/pop3.cfg"
+  OUTFILE="/etc/gromox/imap.cfg"
   cat <<EOF >$OUTFILE
 listen_ssl_port=993
 imap_support_starttls=true
