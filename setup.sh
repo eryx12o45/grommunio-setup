@@ -3,6 +3,9 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 # Interactive grommunio setup
 
+apt update 2>&1 | tee -a "$LOGFILE"
+apt install -y dialog
+
 DATADIR="${0%/*}"
 if [ "${DATADIR}" = "$0" ]; then
   DATADIR="/usr/share/grommunio-setup"
@@ -27,7 +30,7 @@ apt update 2>&1 | tee -a "$LOGFILE"
 apt upgrade -y 2>&1 | tee -a "$LOGFILE"
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-SYSTEM_PACKAGES="dialog mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis \
+SYSTEM_PACKAGES="mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis \
 php7.4 php7.4-fpm curl fetchmail rspamd certbot python3-certbot-nginx cyrus-sasl-saslauthd cyrus-sasl-plain jq gnupg2"
 DEBIAN_FRONTEND=noninteractive apt install -y "${SYSTEM_PACKAGES}" 2>&1 | tee -a "$LOGFILE"
 
