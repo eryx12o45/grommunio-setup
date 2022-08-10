@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 # Interactive grommunio setup
 
-apt update 2>&1 | tee -a "$LOGFILE"
+apt update
 apt install -y dialog
 
 DATADIR="${0%/*}"
