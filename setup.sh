@@ -26,13 +26,13 @@ fi
 TMPF=$(mktemp /tmp/setup.sh.XXXXXXXX)
 
 # make sure necessary packages are installed
-apt update 2>&1 | tee -a "$LOGFILE"
-apt upgrade -y 2>&1 | tee -a "$LOGFILE"
+apt update >>"${LOGFILE}" 2>&1
+apt upgrade >>"${LOGFILE}" 2>&1
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
 SYSTEM_PACKAGES="mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary php-redis \
 php7.4 php7.4-fpm curl fetchmail rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin jq gnupg2"
-DEBIAN_FRONTEND=noninteractive apt install -y ${SYSTEM_PACKAGES} 2>&1 | tee -a "$LOGFILE"
+DEBIAN_FRONTEND=noninteractive apt install -y ${SYSTEM_PACKAGES} >>"${LOGFILE}" 2>&1
 
 writelog "Welcome dialog"
 dialog_welcome
@@ -94,15 +94,15 @@ PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common 
 setup_repo
 
 user_management () {
-    useradd -r gromox 2>&1 | tee -a "$LOGFILE"
-    useradd -r system-user-groweb 2>&1 | tee -a "$LOGFILE"
-    useradd -r grommunio-web 2>&1 | tee -a "$LOGFILE"
-    groupadd -r grommunio 2>&1 | tee -a "$LOGFILE"
-    groupadd -r nginx 2>&1 | tee -a "$LOGFILE"
-    usermod -a -G ssl-cert gromox 2>&1 | tee -a "$LOGFILE"
-    usermod -a -G ssl-cert grodav 2>&1 | tee -a "$LOGFILE"
-    usermod -a -G ssl-cert grosync 2>&1 | tee -a "$LOGFILE"
-    usermod -a -G ssl-cert groweb 2>&1 | tee -a "$LOGFILE"
+    useradd -r gromox >>"${LOGFILE}" 2>&1
+    useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
+    useradd -r grommunio-web >>"${LOGFILE}" 2>&1
+    groupadd -r grommunio >>"${LOGFILE}" 2>&1
+    groupadd -r nginx >>"${LOGFILE}" 2>&1
+    usermod -a -G ssl-cert gromox >>"${LOGFILE}" 2>&1
+    usermod -a -G ssl-cert grodav >>"${LOGFILE}" 2>&1
+    usermod -a -G ssl-cert grosync >>"${LOGFILE}" 2>&1
+    usermod -a -G ssl-cert groweb >>"${LOGFILE}" 2>&1
 }
 user_management
 
@@ -404,24 +404,24 @@ systemctl start mariadb >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: put php files into place"
 if [ -e "/etc/php/7.4/fpm/php-fpm.conf.default" ]; then
-  mv /etc/php/7.4/fpm/php-fpm.conf.default /etc/php/7.4/fpm/php-fpm.conf 2>&1 | tee -a "$LOGFILE"
+  mv /etc/php/7.4/fpm/php-fpm.conf.default /etc/php/7.4/fpm/php-fpm.conf >>"${LOGFILE}" 2>&1
 fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/gromox.conf" ]; then
-  cp -f /usr/share/gromox/fpm-gromox.conf.sample /etc/php/7.4/fpm/pool.d/gromox.conf 2>&1 | tee -a "$LOGFILE"
+  cp -f /usr/share/gromox/fpm-gromox.conf.sample /etc/php/7.4/fpm/pool.d/gromox.conf >>"${LOGFILE}" 2>&1
 fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-web.conf /etc/php/7.4/fpm/pool.d/ 2>&1 | tee -a "$LOGFILE"
+  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-web.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
 fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-sync.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/ 2>&1 | tee -a "$LOGFILE"
+  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
 fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-dav.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/ 2>&1 | tee -a "$LOGFILE"
+  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
 fi
-echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create 2>&1 | tee -a "$LOGFILE"
+echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 
 writelog "Remove default nginx host config"
-rm -f /etc/nginx/sites-enabled/default 2>&1 | tee -a "$LOGFILE"
+rm -f /etc/nginx/sites-enabled/default >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: gromox config"
 setconf /etc/gromox/http.cfg listen_port 10080
@@ -478,9 +478,9 @@ timezone = 'Europe/Vienna'
 EOF
 
 writelog "Config redis fro Grommunio"
-mkdir -p /var/lib/redis/default 2>&1 | tee -a "$LOGFILE"
-chown redis.redis -R /var/lib/redis 2>&1 | tee -a "$LOGFILE"
-systemctl disable --now redis-server.service 2>&1 | tee -a "$LOGFILE"
+mkdir -p /var/lib/redis/default >>"${LOGFILE}" 2>&1
+chown redis.redis -R /var/lib/redis >>"${LOGFILE}" 2>&1
+systemctl disable --now redis-server.service >>"${LOGFILE}" 2>&1
 
 cat >"/etc/systemd/system/redis@grommunio.service" <<EOF
 [Unit]
@@ -501,7 +501,7 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target redis.target
 EOF
-systemctl daemon-reload 2>&1 | tee -a "$LOGFILE"
+systemctl daemon-reload >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: database initialization"
 gromox-dbop -C >>"${LOGFILE}" 2>&1
@@ -606,21 +606,11 @@ writelog "Config stage: postfix enable and restart"
 systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
 
-systemctl enable --now grommunio-fetchmail.timer >>"${LOGFILE}" 2>&1
-
-writelog "Config stage: open required firewall ports"
-{
-  firewall-cmd --add-service=https --zone=public --permanent
-  firewall-cmd --add-port=25/tcp --zone=public --permanent
-  firewall-cmd --add-port=80/tcp --zone=public --permanent
-  firewall-cmd --add-port=110/tcp --zone=public --permanent
-  firewall-cmd --add-port=143/tcp --zone=public --permanent
-  firewall-cmd --add-port=587/tcp --zone=public --permanent
-  firewall-cmd --add-port=993/tcp --zone=public --permanent
-  firewall-cmd --add-port=8080/tcp --zone=public --permanent
-  firewall-cmd --add-port=8443/tcp --zone=public --permanent
-  firewall-cmd --reload
-} >>"${LOGFILE}" 2>&1
+writelog "Fix log folder rights"
+chmod 770 /var/log/grommunio-dav
+chmod 660 /var/log/grommunio-dav/*
+chmod 770 /var/log/grommunio-sync
+chmod 660 /var/log/grommunio-sync/*
 
 progress 90
 writelog "Config stage: restart all required services"
