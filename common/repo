@@ -11,7 +11,7 @@ setup_repo() {
   echo "deb [trusted=yes] https://download.grommunio.com/community/Debian_11 Debian_11 main" > /etc/apt/sources.list.d/grommunio.list
 
   apt update 2>&1 | tee -a "$LOGFILE"
-  apt install -y $"{PACKAGES}" 2>&1 | tee -a "$LOGFILE"
+  apt install -y ${PACKAGES} 2>&1 | tee -a "$LOGFILE"
   dpkg -i "${DATADIR}/temp_packages/grommunio-antispam_amd64.deb"
   echo
   echo -e " \x1b[36m▼\x1b[0m operation completed"
