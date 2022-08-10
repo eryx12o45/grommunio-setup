@@ -1,0 +1,96 @@
+#!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-FileCopyrightText: 2021 grommunio GmbH
+
+dialog >/dev/null 2>&1
+if [ "$?" -eq 127 ]; then
+	echo ERROR: /usr/bin/dialog not installed
+	exit 1
+fi
+
+WELCOME_MSG="\
+Welcome to grommunio Setup.
+
+grommunio Setup helps setting up grommunio and get it up and running.
+During the installation, grommunio Setup will modify system settings.
+
+Make sure that, before running grommunio Setup, you have a working Internet
+connection. This is needed to access online software repositories
+and create TLS certificates using Let's Encrypt.
+
+You can always abort grommunio Setup by pressing the \"ESC\" key.
+
+For more information, refer to https://docs.grommunio.com/admin"
+
+dialog_welcome () {
+
+  dialog --no-mouse --colors --cr-wrap --clear \
+    --backtitle "grommunio Setup" \
+    --title "Welcome" \
+    --yes-label "Continue" \
+    --no-label "Cancel" --defaultno \
+    --yesno "${WELCOME_MSG}" 0 0
+  dialog_exit $?
+
+}
+
+memory_notice ()
+{
+
+  dialog --no-mouse --colors --cr-wrap --clear --backtitle "grommunio Setup" \
+         --title "Memory requirements" \
+         --yes-label "Ignore" --no-label "Exit" --defaultno \
+         --yesno "Minus the regions reserved by firmware or the operating system kernel, this system appears to have only $1 megabytes of memory available. Running with less than 4000 MB is not advised and may lead to processes being unable to perform or startup altogether." 0 0
+  dialog_exit $?
+
+}
+
+ADMINPASS_MSG="\
+Enter the password for the main administration user for the grommunio admin-web UI.
+
+You can either use the randomly created one (shown at the end of the setup wizard), or enter a custom one now."
+
+dialog_adminpass() {
+
+  ADMIN_AUTO_PW=$(randpw)
+  dialog --no-mouse --colors --clear --insecure --cr-wrap \
+    --backtitle "grommunio Setup" \
+    --title "Administrator password" \
+    --ok-label "Submit" \
+    --passwordform         "${ADMINPASS_MSG}" 0 0 0 \
+      "Password:     " 1 1 "${ADMIN_AUTO_PW}" 1 17 25 0 \
+      "Confirmation: " 2 1 "${ADMIN_AUTO_PW}" 2 17 25 0 \
+    2>"${TMPF}"
+  dialog_exit $?
+  PASSONE=$(sed -n '1{p;q}' "${TMPF}")
+  PASSTWO=$(sed -n '2{p;q}' "${TMPF}")
+  if [ "${PASSONE}" != "${PASSTWO}" ] || [ -z "${PASSONE}" ] ; then
+    dialog --no-mouse --clear --colors \
+      --backtitle "grommunio Setup" \
+      --title "Administrator password" \
+      --msgbox 'The passwords were either empty or not identical. Re-enter and confirm the password accordingly.' 0 0
+    dialog_exit $?
+    dialog_adminpass
+  else
+    ADMIN_PASS=${PASSTWO}
+    writelog "grommunio admin password: ${ADMIN_PASS}"
+  fi
+
+}
+
+RELAYHOST_MSG="\
+Setting a relayhost is necessary if your grommunio server is not able to directly send emails over the internet.
+
+Make sure the relayhost allows relaying for this host. You can add DNS names or IP adresses.
+To ensure no MX DNS lookups are issued, enclose the relayhost in square brackets, like \"[mail.isp.com]\".
+"
+get_relayhost(){
+
+  writelog "Dialog: Postfix relayhost"
+  dialog --no-mouse --clear --colors --cr-wrap \
+    --backtitle "grommunio Setup" \
+    --title "Postfix relayhost" \
+    --inputbox "${RELAYHOST_MSG}" 0 0 "" 3>&1 1>&2 2>&3
+  dialog_exit $?
+
+}
