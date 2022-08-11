@@ -87,25 +87,21 @@ unset SSL_BUNDLE
 unset SSL_KEY
 
 writelog "Installation / update of packages"
+user_management () {
+    useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
+    useradd -r grommunio-web >>"${LOGFILE}" 2>&1
+    groupadd -r nginx >>"${LOGFILE}" 2>&1
+}
+user_management
+
+echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
+
 # shellcheck source=common/repo
 PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common \
   grommunio-common grommunio-web grommunio-sync grommunio-dav \
   system-user-groweb system-user-grosync system-user-grodav"
 . "${DATADIR}/common/repo"
 setup_repo
-
-user_management () {
-    useradd -r gromox >>"${LOGFILE}" 2>&1
-    useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
-    useradd -r grommunio-web >>"${LOGFILE}" 2>&1
-    groupadd -r grommunio >>"${LOGFILE}" 2>&1
-    groupadd -r nginx >>"${LOGFILE}" 2>&1
-    usermod -a -G ssl-cert gromox >>"${LOGFILE}" 2>&1
-    usermod -a -G ssl-cert grodav >>"${LOGFILE}" 2>&1
-    usermod -a -G ssl-cert grosync >>"${LOGFILE}" 2>&1
-    usermod -a -G ssl-cert groweb >>"${LOGFILE}" 2>&1
-}
-user_management
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
@@ -165,7 +161,7 @@ else
     MYSQL_PASS=$(sed -n '3{p;q}' "${TMPF}")
     MYSQL_DB=$(sed -n '4{p;q}' "${TMPF}")
     if [ -n "${MYSQL_HOST}" ] && [ -n "${MYSQL_USER}" ] && [ -n "${MYSQL_PASS}" ] && [ -n "${MYSQL_DB}" ]; then
-      echo "drop database if exists ${MYSQL_DB}; create database ${MYSQL_DB}; grant all on ${MYSQL_DB}.* to '${MYSQL_USER}'@'${MYSQL_HOST}' identified by '${MYSQL_PASS}';" | mysql >/dev/null 2>&1
+      echo "DROP DATABASE IF EXISTS ${MYSQL_DB}; CREATE DATABASE ${MYSQL_DB}; GRANT ALL ON ${MYSQL_DB}.* TO '${MYSQL_USER}'@'${MYSQL_HOST}' IDENTIFIED BY '${MYSQL_PASS}';" | mysql >/dev/null 2>&1
     else
       failonme 1
     fi
@@ -393,6 +389,32 @@ echo "{ \"mailWebAddress\": \"https://${FQDN}/web\" }" | jq >/tmp/config.json
 progress 0
 
 progress 10
+writelog "Config redis fro Grommunio"
+mkdir -p /var/lib/redis/default >>"${LOGFILE}" 2>&1
+chown redis.redis -R /var/lib/redis >>"${LOGFILE}" 2>&1
+systemctl disable --now redis-server.service >>"${LOGFILE}" 2>&1
+
+cat >"/etc/systemd/system/redis@grommunio.service" <<EOF
+[Unit]
+Description=Redis instance: %i
+After=network.target
+PartOf=redis.target
+
+[Service]
+Type=notify
+User=redis
+Group=redis
+PrivateTmp=true
+PIDFile=/run/redis/%i.pid
+ExecStart=/usr/bin/redis-server /etc/redis/%i.conf
+LimitNOFILE=10240
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target redis.target
+EOF
+systemctl daemon-reload >>"${LOGFILE}" 2>&1
+
 writelog "Config stage: enable all services"
 systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
@@ -406,7 +428,7 @@ systemctl enable --now mariadb >>"${LOGFILE}" 2>&1
 # https://community.grommunio.com/d/447-debian-11-clean-install-script/37
 mkdir -p /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 # shellcheck disable=SC2028
-echo -n "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0\n" | tee -a /etc/fstab
+echo -e -n "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0\n" | tee -a /etc/fstab
 mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: put php files into place"
@@ -425,7 +447,6 @@ fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-dav.conf" ]; then
   ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
 fi
-echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 
 writelog "Remove default nginx host config"
 rm -f /etc/nginx/sites-enabled/default >>"${LOGFILE}" 2>&1
@@ -449,7 +470,7 @@ EOF
 
 writelog "Config stage: database creation"
 progress 40
-echo "create database grommunio; grant all on grommunio.* to 'grommunio'@'localhost' identified by '${MYSQL_PASS}';" | mysql
+echo "CREATE DATABASE IF NOT EXISTS grommunio; GRANT ALL ON grommunio.* TO 'grommunio'@'localhost' IDENTIFIED BY '${MYSQL_PASS}';" | mysql
 echo "# Do not delete this file unless you know what you do!" >/etc/grommunio-common/setup_done
 
 writelog "Config stage: database configuration"
@@ -483,32 +504,6 @@ timezone = 'Europe/Vienna'
 /var/lib/gromox/user = ${FQDN}
 /var/lib/gromox/domain = ${FQDN}
 EOF
-
-writelog "Config redis fro Grommunio"
-mkdir -p /var/lib/redis/default >>"${LOGFILE}" 2>&1
-chown redis.redis -R /var/lib/redis >>"${LOGFILE}" 2>&1
-systemctl disable --now redis-server.service >>"${LOGFILE}" 2>&1
-
-cat >"/etc/systemd/system/redis@grommunio.service" <<EOF
-[Unit]
-Description=Redis instance: %i
-After=network.target
-PartOf=redis.target
-
-[Service]
-Type=notify
-User=redis
-Group=redis
-PrivateTmp=true
-PIDFile=/run/redis/%i.pid
-ExecStart=/usr/bin/redis-server /etc/redis/%i.conf
-LimitNOFILE=10240
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target redis.target
-EOF
-systemctl daemon-reload >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: database initialization"
 gromox-dbop -C >>"${LOGFILE}" 2>&1
