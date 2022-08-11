@@ -405,8 +405,7 @@ systemctl enable --now mariadb >>"${LOGFILE}" 2>&1
 
 # https://community.grommunio.com/d/447-debian-11-clean-install-script/37
 mkdir -p /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
-# shellcheck disable=SC2028
-echo -n "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0\n" | tee -a /etc/fstab
+echo -e "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0" | tee -a /etc/fstab
 mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: put php files into place"
