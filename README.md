@@ -1,12 +1,12 @@
 ### General Info
-Installation script for installing Grommunio Groupware (https://www.grommunio.com) on a Debian 11 fresh installation.
+Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian 11.
 
-Please feel free to contribute either directly in Github or add your inout [here](https://community.grommunio.com/d/447-debian-11-clean-install-script).
+Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/447-debian-11-clean-install-script).
 
 Also containing a test-wise grommunio-antispam Debian 11 package.
 
 ### Requirements
-* enable ipv6 on your Debian before starting
+* enable ipv6 on your system before starting
 * install git
 
 ### Usage
@@ -51,3 +51,5 @@ usermod --comment "$(dnsdomainname |cut -d. -f1 |tr 'a-z' 'A-z')-GROMI-ROOT" roo
 * no meet
 * no files
 * no archive
+
+#### Special thanks to [crpb](https://github.com/crpb) for your continuous support
