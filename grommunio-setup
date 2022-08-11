@@ -88,6 +88,7 @@ unset SSL_KEY
 
 writelog "Installation / update of packages"
 user_management() {
+  useradd -r gromox
   useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
   useradd -r grommunio-web >>"${LOGFILE}" 2>&1
   groupadd -r nginx >>"${LOGFILE}" 2>&1
@@ -415,6 +416,13 @@ WantedBy=multi-user.target redis.target
 EOF
 systemctl daemon-reload >>"${LOGFILE}" 2>&1
 
+cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
+ssl_certificate ${SSL_BUNDLE_T};
+ssl_certificate_key ${SSL_KEY_T};
+EOF
+ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
+chown gromox:gromox /etc/grommunio-common/ssl/*
+
 writelog "Config stage: enable all services"
 systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
@@ -537,13 +545,6 @@ setconf /etc/gromox/pop3.cfg pop3_support_stls true
 setconf /etc/gromox/pop3.cfg listen_ssl_port 995
 setconf /etc/gromox/pop3.cfg pop3_certificate_path "${SSL_BUNDLE_T}"
 setconf /etc/gromox/pop3.cfg pop3_private_key_path "${SSL_KEY_T}"
-
-cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
-ssl_certificate ${SSL_BUNDLE_T};
-ssl_certificate_key ${SSL_KEY_T};
-EOF
-ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
-chown gromox:gromox /etc/grommunio-common/ssl/*
 
 # Domain and X500
 writelog "Config stage: gromox domain and x500 configuration"
