@@ -631,6 +631,7 @@ chmod 660 /var/log/grommunio-sync/* >>"${LOGFILE}" 2>&1
 writelog "Enable fetchmail and configure"
 setconf /etc/default/fetchmail START_DAEMON yes
 systemctl enable --now fetchmail.service >>"${LOGFILE}" 2>&1
+systemctl restart --now fetchmail.service >>"${LOGFILE}" 2>&1
 
 writelog "Configure firewall / open ports (iptables)"
 if [ -e /etc/iptables/rules.v6 ]; then
