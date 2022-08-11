@@ -87,10 +87,10 @@ unset SSL_BUNDLE
 unset SSL_KEY
 
 writelog "Installation / update of packages"
-user_management () {
-    useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
-    useradd -r grommunio-web >>"${LOGFILE}" 2>&1
-    groupadd -r nginx >>"${LOGFILE}" 2>&1
+user_management() {
+  useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
+  useradd -r grommunio-web >>"${LOGFILE}" 2>&1
+  groupadd -r nginx >>"${LOGFILE}" 2>&1
 }
 user_management
 
@@ -418,7 +418,7 @@ systemctl daemon-reload >>"${LOGFILE}" 2>&1
 writelog "Config stage: enable all services"
 systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
-  gromox-delivery-queue.service gromox-timer.service gromox-zcore.service grommunio-antispam.service\
+  gromox-delivery-queue.service gromox-timer.service gromox-zcore.service grommunio-antispam.service \
   php7.4-fpm.service nginx.service grommunio-admin-api.service saslauthd.service >>"${LOGFILE}" 2>&1
 
 progress 20
@@ -461,7 +461,9 @@ setconf /etc/gromox/smtp.cfg listen_port 24
 
 writelog "Config stage: pam config"
 progress 30
-cp /etc/pam.d/smtp /etc/pam.d/smtp.save
+if [ -e /etc/pam.d/smtp ]; then
+  cp /etc/pam.d/smtp /etc/pam.d/smtp.save
+fi
 cat >/etc/pam.d/smtp <<EOF
 #%PAM-1.0
 auth required pam_gromox.so
@@ -616,7 +618,7 @@ chmod 660 /var/log/grommunio-sync/* >>"${LOGFILE}" 2>&1
 
 writelog "Configure firewall / open ports (iptables)"
 if [ ! -e /etc/iptables/rules.v6 ]; then
-cat >/etc/iptables/rules.v6 <<EOF
+  cat >/etc/iptables/rules.v6 <<EOF
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
@@ -651,7 +653,7 @@ chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
 progress 90
 writelog "Config stage: restart all required services"
 systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromox-delivery.service \
-  gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service grommunio-antispam.service\
+  gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service grommunio-antispam.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   grommunio-admin-api.service saslauthd.service >>"${LOGFILE}" 2>&1
 
