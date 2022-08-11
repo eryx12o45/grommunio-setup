@@ -629,13 +629,14 @@ chmod 770 /var/log/grommunio-sync >>"${LOGFILE}" 2>&1
 chmod 660 /var/log/grommunio-sync/* >>"${LOGFILE}" 2>&1
 
 writelog "Configure firewall / open ports (iptables)"
-if [ ! -e /etc/iptables/rules.v6 ]; then
-  cat >/etc/iptables/rules.v6 <<EOF
+if [ -e /etc/iptables/rules.v6 ]; then
+  cp /etc/iptables/rules.v6 /etc/iptables/rules.v6_backup
+fi
+cat >/etc/iptables/rules.v6 <<EOF
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [56:14304]
-:fail2ban - [0:0]
 -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 25 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
@@ -654,10 +655,10 @@ if [ ! -e /etc/iptables/rules.v6 ]; then
 -A OUTPUT -p udp -m udp --dport 53 -j ACCEPT
 COMMIT
 EOF
+if [ -e /etc/iptables/rules.v4 ]; then
+  cp /etc/iptables/rules.v4 /etc/iptables/rules.v4_backup
 fi
-if [ ! -e /etc/iptables/rules.v4 ]; then
-  cp /etc/iptables/rules.v6 /etc/iptables/rules.v4
-fi
+cp /etc/iptables/rules.v6 cp /etc/iptables/rules.v4
 
 writelog "Fix license import via admin-web-gui"
 chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
