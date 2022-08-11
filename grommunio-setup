@@ -95,7 +95,15 @@ user_management() {
 }
 user_management
 
+# fix run directory for php-fpm
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
+# workaround for nginx start before ssl creation
+mkdir -p /etc/grommunio-common/nginx/
+cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
+ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+EOF
+ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
 
 # shellcheck source=common/repo
 PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common \
@@ -420,6 +428,9 @@ cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
 ssl_certificate ${SSL_BUNDLE_T};
 ssl_certificate_key ${SSL_KEY_T};
 EOF
+if [ -e /etc/grommunio-admin-common/nginx-ssl.conf ]; then
+  rm -f /etc/grommunio-admin-common/nginx-ssl.conf
+fi
 ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
 chown gromox:gromox /etc/grommunio-common/ssl/*
 
@@ -436,7 +447,7 @@ systemctl enable --now mariadb >>"${LOGFILE}" 2>&1
 # https://community.grommunio.com/d/447-debian-11-clean-install-script/37
 mkdir -p /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 # shellcheck disable=SC2028
-echo -e -n "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0\n" | tee -a /etc/fstab
+echo -e -n "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0\n" | tee -a /etc/fstab >>"${LOGFILE}" 2>&1
 mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: put php files into place"
