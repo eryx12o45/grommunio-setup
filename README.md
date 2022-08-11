@@ -15,6 +15,8 @@ git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grom
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
 
+* iptables rules will be configured and persistent, enabling will require a reboot!
+
 ### Additions
 #### Install grommunio-index
 ```
@@ -52,4 +54,6 @@ usermod --comment "$(dnsdomainname |cut -d. -f1 |tr 'a-z' 'A-z')-GROMI-ROOT" roo
 * no files
 * no archive
 
-#### Special thanks to [crpb](https://github.com/crpb) for your continuous support
+#### Special thanks to:
+* [crpb](https://github.com/crpb) for your continuous support
+* [budachst](https://github.com/budachst) for your support
