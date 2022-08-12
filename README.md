@@ -22,7 +22,7 @@ git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grom
 ```
 mkdir /root/rpmconv
 cd /root/rpmconv
-apt-get install --yes alien
+apt install -y alien
 wget https://download.grommunio.com/community/openSUSE_Leap_15.3/grommunio-index-0.1.11.8787c3c-lp153.17.1.x86_64.rpm
 alien grommunio-index-0.1.11.8787c3c-lp153.17.1.x86_64.rpm
 dpkg -i grommunio-index_0.1.11.8787c3c-1_amd64.deb
