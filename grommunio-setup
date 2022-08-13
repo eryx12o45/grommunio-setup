@@ -3,8 +3,8 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 # Interactive grommunio setup
 
-apt update
-apt install -y dialog
+apt-get update
+apt-get install -y dialog
 
 DATADIR="${0%/*}"
 if [ "${DATADIR}" = "$0" ]; then
@@ -26,14 +26,14 @@ fi
 TMPF=$(mktemp /tmp/setup.sh.XXXXXXXX)
 
 # make sure necessary packages are installed
-apt update >>"${LOGFILE}" 2>&1
-apt upgrade -y >>"${LOGFILE}" 2>&1
+apt-get update >>"${LOGFILE}" 2>&1
+apt-get dist-upgrade -y >>"${LOGFILE}" 2>&1
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
 SYSTEM_PACKAGES="mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary \
 php-redis sqlite3 php7.4 php7.4-fpm curl fetchmail rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules \
 sasl2-bin jq gnupg2 iptables iptables-persistent clamav clamav-freshclam clamav-daemon"
-DEBIAN_FRONTEND=noninteractive apt install -y ${SYSTEM_PACKAGES} >>"${LOGFILE}" 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get install -y ${SYSTEM_PACKAGES} >>"${LOGFILE}" 2>&1
 
 writelog "Welcome dialog"
 dialog_welcome

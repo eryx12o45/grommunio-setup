@@ -77,7 +77,7 @@ owncert() {
 letsencrypt() {
 
   progress 0
-  apt install -y python3-certbot python3-certbot-nginx nginx >>"${LOGFILE}" 2>&1
+  apt-get install -y python3-certbot python3-certbot-nginx nginx >>"${LOGFILE}" 2>&1
   progress 60
   {
     firewall-cmd --add-port=80/tcp --zone=public --permanent
