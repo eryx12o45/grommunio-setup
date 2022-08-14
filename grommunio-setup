@@ -459,8 +459,8 @@ fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/gromox.conf" ]; then
   cp -f /usr/share/gromox/fpm-gromox.conf.sample /etc/php/7.4/fpm/pool.d/gromox.conf >>"${LOGFILE}" 2>&1
 fi
-if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-web.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
+#if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-web.conf" ]; then
+#  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-web.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
 fi
 if [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-sync.conf" ]; then
   ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
