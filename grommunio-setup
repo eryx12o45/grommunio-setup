@@ -103,7 +103,6 @@ cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
 ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
 ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
 EOF
-ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
 
 # shellcheck source=common/repo
 PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common \
@@ -111,6 +110,8 @@ PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common 
   system-user-groweb system-user-grosync system-user-grodav"
 . "${DATADIR}/common/repo"
 setup_repo
+
+ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
