@@ -765,7 +765,8 @@ writelog "Config stage: restart all required services"
 systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromox-delivery.service \
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service grommunio-antispam.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service >>"${LOGFILE}" 2>&1
+  grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
+  grommunio-spam-run.service >>"${LOGFILE}" 2>&1
 
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl restart grommunio-admin-api.service
