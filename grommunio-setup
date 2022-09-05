@@ -92,6 +92,7 @@ user_management() {
   useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
   useradd -r grommunio-web >>"${LOGFILE}" 2>&1
   groupadd -r nginx >>"${LOGFILE}" 2>&1
+  adduser postfix sasl  >>"${LOGFILE}" 2>&1
 }
 user_management
 
@@ -441,7 +442,7 @@ systemctl enable --now mariadb >>"${LOGFILE}" 2>&1
 # https://community.grommunio.com/d/447-debian-11-clean-install-script/37
 mkdir -p /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 # shellcheck disable=SC2028
-if ! grep -qF -- "/run/mysqld" /etc/fstab; then 
+if ! grep -qF -- "/run/mysqld" /etc/fstab; then
   echo -e "/run/mysqld\t/var/spool/postfix/run/mysqld\tbind\tdefaults,bind\t0\t0" | \
   tee -a /etc/fstab >>"${LOGFILE}" 2>&1
   mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
@@ -679,10 +680,25 @@ postconf -P submission/inet/smtpd_tls_security_level=encrypt
 postconf -P submission/inet/smtpd_sasl_auth_enable=yes
 postconf -P submission/inet/smtpd_relay_restrictions=permit_sasl_authenticated,reject
 postconf -P submission/inet/milter_macro_daemon_name=ORIGINATING
+postconf -e 'cyrus_sasl_config_path = /etc/postfix/sasl'
+postconf -e 'smtpd_sasl_local_domain = $myhostname'
+
+writelog "Configure sasl smtpd"
+[ -e "/etc/postfix/sasl" ] || mkdir -p "/etc/postfix/sasl"
+cat > /etc/postfix/sasl/smtpd.conf <<EOF
+pwcheck_method: saslauthd
+mech_list: CRAM-MD5 DIGEST-MD5 LOGIN PLAIN
+EOF
 
 writelog "Config stage: postfix enable and restart"
 systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
+
+writelog "Update sasauthd defaults"
+sed -i 's/START=no/START=yes/g' /etc/default/saslauthd
+sed -i 's/-c -m \/var\/run\/saslauthd/-r -c -m \/var\/run\/saslauthd/g' /etc/default/saslauthd
+systemctl stop saslauthd  >>"${LOGFILE}" 2>&1
+systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
 chmod 770 /var/log/grommunio-dav >>"${LOGFILE}" 2>&1
