@@ -7,16 +7,21 @@ setup_repo() {
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
   echo
-  wget -q https://download.grommunio.com/RPM-GPG-KEY-grommunio -O /etc/apt/trusted.gpg.d/download.grommunio.com.asc
+  kr=/usr/share/keyrings/download.grommunio.com.gpg
+  if [ ! -f $kr ]; then
+  wget -qO - https://download.grommunio.com/RPM-GPG-KEY-grommunio | \
+    gpg --dearmor --output $kr
+  fi
 cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_11
 Suites: Debian_11
 Components: main
+Signed-By: $kr
 SOURCES
 
-  apt-get update 2>&1 | tee -a "$LOGFILE"
-  apt-get install -y ${PACKAGES} 2>&1 | tee -a "$LOGFILE"
+  apt-get update >> "${LOGFILE}" 2>&1
+  apt-get install -y "${PACKAGES[@]}" >> "${LOGFILE}" 2>&1
   dpkg -i "${DATADIR}/temp_packages/grommunio-antispam_amd64.deb"
   echo
   echo -e " \x1b[36m▼\x1b[0m operation completed"

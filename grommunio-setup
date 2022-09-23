@@ -3,8 +3,10 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 # Interactive grommunio setup
 
-apt-get update
-apt-get install -y dialog
+#randpw..
+# shellcheck disable=SC2119
+
+export DEBIAN_FRONTEND=noninteractive 
 
 DATADIR="${0%/*}"
 if [ "${DATADIR}" = "$0" ]; then
@@ -19,21 +21,41 @@ if ! test -e "$LOGFILE"; then
   true >"$LOGFILE"
   chmod 0600 "$LOGFILE"
 fi
+
+apt-get update >> "$LOGFILE" 2>&1
+apt-get install -y dialog >> "$LOGFILE" 2>&1
+
 # shellcheck source=common/helpers
 . "${DATADIR}/common/helpers"
-# shellcheck source=common/dialogs
+# shellcheck source=./common/dialogs
 . "${DATADIR}/common/dialogs"
 TMPF=$(mktemp /tmp/setup.sh.XXXXXXXX)
+
+#Prevent Apache-Installation
+cat <<END > /etc/apt/preferences.d/no-apache
+Package: apache2
+Pin: release *
+Pin-Priority: -1
+
+Package: apache2-bin
+Pin: release *
+Pin-Priority: -1
+
+Package: libapache2-mod-php
+Pin: release *
+Pin-Priority: -1
+END
 
 # make sure necessary packages are installed
 apt-get update >>"${LOGFILE}" 2>&1
 apt-get dist-upgrade -y >>"${LOGFILE}" 2>&1
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-SYSTEM_PACKAGES="mariadb-server mariadb-client redis nginx postfix postfix-mysql php php-igbinary \
-php-redis sqlite3 php7.4 php7.4-fpm curl fetchmail rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules \
-sasl2-bin jq gnupg2 iptables iptables-persistent clamav clamav-freshclam clamav-daemon"
-DEBIAN_FRONTEND=noninteractive apt-get install -y ${SYSTEM_PACKAGES} >>"${LOGFILE}" 2>&1
+SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix \
+  postfix-mysql php php-igbinary php-redis sqlite3 php php-fpm curl fetchmail \
+  rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin \
+  jq gnupg2 firewalld clamav clamav-freshclam clamav-daemon)
+apt-get install -y "${SYSTEM_PACKAGES[@]}" >>"${LOGFILE}" 2>&1
 
 writelog "Welcome dialog"
 dialog_welcome
@@ -59,8 +81,8 @@ You can abort or delete all data and setup everything from scratch. If so, confi
 fi
 
 memory_check() {
-
-  local HAVE=$(perl -lne 'print $1 if m{^MemTotal:\s*(\d+)}i' </proc/meminfo)
+  local HAVE
+  HAVE=$(perl -lne 'print $1 if m{^MemTotal:\s*(\d+)}i' </proc/meminfo)
   # Install the threshold a little lower than what we ask, to account for
   # FW/OS (Vbox with 4194304 KB ends up with MemTotal of about 4020752 KB)
   local THRES=4000000
@@ -88,23 +110,24 @@ unset SSL_KEY
 
 writelog "Installation / update of packages"
 user_management() {
-  useradd -r gromox
-  useradd -r system-user-groweb >>"${LOGFILE}" 2>&1
-  useradd -r grommunio-web >>"${LOGFILE}" 2>&1
-  groupadd -r nginx >>"${LOGFILE}" 2>&1
-  adduser postfix sasl  >>"${LOGFILE}" 2>&1
+#  adduser --system gromox
+#  adduser --system system-user-groweb
+#  adduser --system grommunio-web
+  adduser postfix sasl 
 }
-user_management
-
-# fix run directory for php-fpm
-echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf && systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
+user_management >>"${LOGFILE}" 2>&1
 
 # shellcheck source=common/repo
-PACKAGES="gromox grommunio-admin-api grommunio-admin-web grommunio-admin-common \
-  grommunio-common grommunio-web grommunio-sync grommunio-dav \
-  system-user-groweb system-user-grosync system-user-grodav"
+PACKAGES=(gromox grommunio-admin-api grommunio-admin-web \
+  grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
+  grommunio-dav system-user-groweb system-user-grosync system-user-grodav \
+  system-user-gromox system-user-groadm system-user-grommunio)
 . "${DATADIR}/common/repo"
 setup_repo
+
+# fix run directory for php-fpm
+echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
+systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
@@ -393,10 +416,11 @@ progress 0
 
 progress 10
 writelog "Config redis fro Grommunio"
-mkdir -p /var/lib/redis/default >>"${LOGFILE}" 2>&1
-chown redis.redis -R /var/lib/redis >>"${LOGFILE}" 2>&1
-systemctl disable --now redis-server.service >>"${LOGFILE}" 2>&1
-
+{
+mkdir -p /var/lib/redis/default
+chown redis.redis -R /var/lib/redis
+systemctl disable --now redis-server.service
+}  >>"${LOGFILE}" 2>&1
 cat >"/etc/systemd/system/redis@grommunio.service" <<EOF
 [Unit]
 Description=Redis instance: %i
@@ -566,7 +590,7 @@ antivirus {
     # Scanning Text is suitable for some av scanner databases (e.g. Sanesecurity)
     scan_text_mime = false;
     scan_image_mime = false;
-    # If `max_size` is set, messages > n bytes in size are not scanned
+    # If max_size is set, messages > n bytes in size are not scanned
     #max_size = 20000000;
     # symbol to add (add it to metric if you want non-zero weight)
     symbol = "CLAM_VIRUS";
@@ -581,7 +605,7 @@ antivirus {
     # can be set to a path to a unix socket
     # Enable this in local.d/antivirus.conf
     servers = "127.0.0.1:3310";
-    # if `patterns` is specified virus name will be matched against provided regexes and the related
+    # if patterns is specified virus name will be matched against provided regexes and the related
     # symbol will be yielded if a match is found. If no match is found, default symbol is yielded.
     #patterns {
       # symbol_name = "pattern";
@@ -591,7 +615,7 @@ antivirus {
       # symbol_name = "pattern";
       #CLAM_PROTOCOL_ERROR = '^unhandled response';
     #}
-    # `whitelist` points to a map of signature names. Hits on these signatures are ignored.
+    # whitelist points to a map of signature names. Hits on these signatures are ignored.
     whitelist = "/etc/rspamd/antivirus.wl";
   }
 }
@@ -682,8 +706,8 @@ postconf -P submission/inet/smtpd_tls_security_level=encrypt
 postconf -P submission/inet/smtpd_sasl_auth_enable=yes
 postconf -P submission/inet/smtpd_relay_restrictions=permit_sasl_authenticated,reject
 postconf -P submission/inet/milter_macro_daemon_name=ORIGINATING
-postconf -e 'cyrus_sasl_config_path = /etc/postfix/sasl'
-postconf -e 'smtpd_sasl_local_domain = $myhostname'
+postconf -e 'cyrus_sasl_config_path=/etc/postfix/sasl'
+postconf -e 'smtpd_sasl_local_domain=myhostname'
 
 writelog "Configure sasl smtpd"
 [ -e "/etc/postfix/sasl" ] || mkdir -p "/etc/postfix/sasl"
@@ -703,69 +727,32 @@ systemctl stop saslauthd  >>"${LOGFILE}" 2>&1
 systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
-chmod 770 /var/log/grommunio-dav >>"${LOGFILE}" 2>&1
-chmod 660 /var/log/grommunio-dav/* >>"${LOGFILE}" 2>&1
-chmod 770 /var/log/grommunio-sync >>"${LOGFILE}" 2>&1
-chmod 660 /var/log/grommunio-sync/* >>"${LOGFILE}" 2>&1
+{
+chmod 770 /var/log/grommunio-dav
+chmod 660 /var/log/grommunio-dav/*
+chmod 770 /var/log/grommunio-sync
+chmod 660 /var/log/grommunio-sync/*
+} >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
 setconf /etc/default/fetchmail START_DAEMON yes
 systemctl enable --now fetchmail.service >>"${LOGFILE}" 2>&1
 systemctl restart --now fetchmail.service >>"${LOGFILE}" 2>&1
 
-writelog "Configure firewall / open ports (iptables)"
-if [ -e /etc/iptables/rules.v6 ]; then
-  cp /etc/iptables/rules.v6 /etc/iptables/rules.v6_backup
-fi
-cat >/etc/iptables/rules.v6 <<EOF
-*filter
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [56:14304]
--A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 25 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 110 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 143 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 587 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 993 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 995 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 8443 -j ACCEPT
--A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
--A INPUT -i lo -j ACCEPT
--A INPUT -j REJECT --reject-with icmp6-port-unreachable
--A OUTPUT -o lo -j ACCEPT
--A OUTPUT -p udp -m udp --dport 53 -j ACCEPT
-COMMIT
-EOF
-if [ -e /etc/iptables/rules.v4 ]; then
-  cp /etc/iptables/rules.v4 /etc/iptables/rules.v4_backup
-fi
-cat >/etc/iptables/rules.v4 <<EOF
-*filter
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [56:14304]
--A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 25 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 110 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 143 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 587 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 993 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 995 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 8443 -j ACCEPT
--A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
--A INPUT -i lo -j ACCEPT
--A INPUT -j REJECT --reject-with icmp-port-unreachable
--A OUTPUT -o lo -j ACCEPT
--A OUTPUT -p udp -m udp --dport 53 -j ACCEPT
-COMMIT
-EOF
+# Note: SSH is enabled by Default
+writelog "Config stage: open required firewall ports"
+{
+  firewall-cmd --add-service=https --zone=public --permanent
+  firewall-cmd --add-port=25/tcp --zone=public --permanent
+  firewall-cmd --add-port=80/tcp --zone=public --permanent
+  firewall-cmd --add-port=110/tcp --zone=public --permanent
+  firewall-cmd --add-port=143/tcp --zone=public --permanent
+  firewall-cmd --add-port=587/tcp --zone=public --permanent
+  firewall-cmd --add-port=993/tcp --zone=public --permanent
+  firewall-cmd --add-port=8080/tcp --zone=public --permanent
+  firewall-cmd --add-port=8443/tcp --zone=public --permanent
+  firewall-cmd --reload
+} >>"${LOGFILE}" 2>&1
 
 writelog "Fix license import via admin-web-gui"
 chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
@@ -778,8 +765,15 @@ systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromo
   grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
   grommunio-spam-run.service >>"${LOGFILE}" 2>&1
 
+# und taeglich gruesst das murmeltier
+sed -i 's/nginx/www-data/g' /usr/lib/tmpfiles.d/grommunio-admin-api.conf
+systemd-tmpfiles --create /usr/lib/tmpfiles.d/grommunio-admin-api.conf >>"${LOGFILE}" 2>&1
+
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl restart grommunio-admin-api.service
+
+#apt capture non-finished packages
+apt-get --yes install -f
 
 progress 100
 writelog "Config stage: completed"

@@ -98,7 +98,7 @@ If you have created a Full CA Certificate during the process, you can download a
 
 During the process, grommunio Setup has created an installation log which you may copy to a secure location or delete if not required anymore at
 
-  "${LOGFILE}"
+  ${LOGFILE}
   Warning: The file contains sensitive information such as passwords!
 
 If using grommunio commercially, consider purchasing a subscription which provides support.
