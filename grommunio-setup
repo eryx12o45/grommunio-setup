@@ -707,7 +707,7 @@ postconf -P submission/inet/smtpd_sasl_auth_enable=yes
 postconf -P submission/inet/smtpd_relay_restrictions=permit_sasl_authenticated,reject
 postconf -P submission/inet/milter_macro_daemon_name=ORIGINATING
 postconf -e 'cyrus_sasl_config_path=/etc/postfix/sasl'
-postconf -e 'smtpd_sasl_local_domain=myhostname'
+postconf -e 'smtpd_sasl_local_domain=$myhostname'
 
 writelog "Configure sasl smtpd"
 [ -e "/etc/postfix/sasl" ] || mkdir -p "/etc/postfix/sasl"
