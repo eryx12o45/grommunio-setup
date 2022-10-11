@@ -765,9 +765,10 @@ systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromo
   grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
   grommunio-spam-run.service >>"${LOGFILE}" 2>&1
 
-# und taeglich gruesst das murmeltier
-sed -i 's/nginx/www-data/g' /usr/lib/tmpfiles.d/grommunio-admin-api.conf
-systemd-tmpfiles --create /usr/lib/tmpfiles.d/grommunio-admin-api.conf >>"${LOGFILE}" 2>&1
+# grommunio-admin-api systemd-tmpfiles wrong user for nginx
+cp /usr/lib/tmpfiles.d/grommunio-admin-api.conf /etc/tmpfiles.d/
+sed -i 's/nginx/www-data/g' /etc/tmpfiles.d/grommunio-admin-api.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/grommunio-admin-api.conf >>"${LOGFILE}" 2>&1
 
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl restart grommunio-admin-api.service
