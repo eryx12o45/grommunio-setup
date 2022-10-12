@@ -454,7 +454,7 @@ systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.se
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
   gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   php7.4-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
-  clamav-freshclam.service clamav-daemon.service >>"${LOGFILE}" 2>&1
+  clamav-freshclam.service clamav-daemon.service rspamd.service >>"${LOGFILE}" 2>&1
 
 progress 20
 writelog "Config stage: start db"
@@ -834,7 +834,7 @@ systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromo
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
-  grommunio-spam-run.service >>"${LOGFILE}" 2>&1
+  grommunio-spam-run.service rpsmad.service >>"${LOGFILE}" 2>&1
 
 # grommunio-admin-api systemd-tmpfiles wrong user for nginx
 cp /usr/lib/tmpfiles.d/grommunio-admin-api.conf /etc/tmpfiles.d/
