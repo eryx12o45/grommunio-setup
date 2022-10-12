@@ -640,6 +640,7 @@ echo "${MYSQL_QUERY[@]}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
   done
 done
 EOF
+chmod +x /usr/sbin/grommunio-spam-run
 
 systemctl daemon-reload >>"${LOGFILE}" 2>&1
 systemctl enable --now grommunio-spam-run.timer grommunio-spam-run.service >>"${LOGFILE}" 2>&1
