@@ -567,6 +567,80 @@ location /rspamd/ {
 }
 EOF
 
+writelog "Add grommunio-antispam service files"
+cat >/lib/systemd/system/grommunio-spam-run.service <<'EOF'
+[Unit]
+Description=Spam classification, training and cleanup run
+
+[Service]
+ProtectSystem=full
+ProtectHome=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictRealtime=true
+Type=oneshot
+ExecStart=/usr/sbin/grommunio-spam-run
+EOF
+
+cat >/lib/systemd/system/grommunio-spam-run.timer <<'EOF'
+[Unit]
+Description=Daily spam classification, training and cleanup run
+
+[Timer]
+OnCalendar=daily
+AccuracySec=12h
+Persistent=true
+RandomizedDelaySec=6000
+
+[Install]
+WantedBy=timers.target
+EOF
+
+cat >/usr/sbin/grommunio-spam-run <<'EOF'
+#!/bin/bash
+
+MYSQL_CFG="/etc/gromox/mysql_adaptor.cfg"
+
+if [ ! -e "${MYSQL_CFG}" ] ; then
+  echo "MySQL configuration not found. (${MYSQL_CFG})"
+  exit 1
+fi
+
+MYSQL_PARAMS="--skip-column-names --skip-line-numbers"
+MYSQL_USERNAME=$(sed -ne 's/mysql_username\s*=\s*\(.*\)\s*/-u\1/pI' ${MYSQL_CFG})
+MYSQL_PASSWORD=$(sed -ne 's/mysql_password\s*=\s*\(.*\)\s*/-p\1/pI' ${MYSQL_CFG})
+MYSQL_DBNAME=$(sed -ne 's/mysql_dbname\s*=\s*\(.*\)\s*/\1/pI' ${MYSQL_CFG})
+MYSQL_HOST=$(sed -ne 's/mysql_host\s*=\s*\(.*\)\s*/-h\1/pI' ${MYSQL_CFG})
+MYSQL_PORT=$(sed -ne 's/mysql_port\s*=\s*\(.*\)\s*/-P\1/pI' ${MYSQL_CFG})
+MYSQL_QUERY='SELECT `username`, `maildir` from users where `id` <> 0 and `maildir` <> "";'
+MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME}" "${MYSQL_PASSWORD}" "${MYSQL_HOST}" "${MYSQL_PORT}" "${MYSQL_DBNAME}")
+
+echo "${MYSQL_QUERY[@]}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
+  echo 'select message_id,mid_string from messages where parent_fid=0x17;' | sqlite3 "${MAILDIR}/exmdb/exchange.sqlite3" -tabs -noheader | while read -r SPAMMSG; do
+        MSGFILE=$(echo "${SPAMMSG}" | awk '{ print $2 }')
+        if [[ -z "$MSGFILE" ]]; then
+                continue
+        fi
+        MSGID=$(echo "${SPAMMSG}" | awk '{ print $1 }')
+        echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
+        MSGFILE="$MAILDIR/eml/$MSGFILE"
+        if [[ ! -f "$MSGFILE" ]]; then
+                continue
+        fi
+        rspamc learn_spam "$MSGFILE" | systemd-cat -t grommunio-spam-run
+        EXITSTATUS=$?
+        if [ ${EXITSTATUS} -eq 0 ]; then
+                /usr/libexec/gromox/delmsg -d "${MAILDIR}" -f 0x17 "${MSGID}" | systemd-cat -t grommunio-spam-run
+        fi
+  done
+done
+EOF
+
 writelog "Configure antivirus in antispam"
 cat >/etc/rspamd/local.d/antivirus.conf <<EOF
 # local.d/antivirus.conf
