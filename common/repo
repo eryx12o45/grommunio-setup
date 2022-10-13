@@ -22,7 +22,6 @@ SOURCES
 
   apt-get update >> "${LOGFILE}" 2>&1
   apt-get install -y "${PACKAGES[@]}" >> "${LOGFILE}" 2>&1
-  dpkg -i "${DATADIR}/temp_packages/grommunio-antispam_amd64.deb"
   echo
   echo -e " \x1b[36m▼\x1b[0m operation completed"
   echo

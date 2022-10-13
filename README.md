@@ -3,8 +3,6 @@ Installation script for Grommunio Groupware (https://www.grommunio.com) on Debia
 
 Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/447-debian-11-clean-install-script).
 
-Also containing a test-wise grommunio-antispam Debian 11 package.
-
 ### Requirements
 * enable ipv6 on your system before starting
 * install git
@@ -14,8 +12,6 @@ Also containing a test-wise grommunio-antispam Debian 11 package.
 git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
-
-* iptables rules will be configured and persistent, enabling will require a reboot!
 
 ### Additions
 #### Fix Grommunio Admin Live Status page
