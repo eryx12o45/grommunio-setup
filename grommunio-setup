@@ -115,7 +115,7 @@ user_management() {
 user_management >>"${LOGFILE}" 2>&1
 
 # shellcheck source=common/repo
-PACKAGES=(gromox grommunio-admin-api grommunio-admin-web \
+PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
   grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
   grommunio-dav system-user-groweb system-user-grosync system-user-grodav \
   system-user-gromox system-user-groadm system-user-grommunio)
@@ -454,7 +454,8 @@ systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.se
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
   gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   php7.4-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
-  clamav-freshclam.service clamav-daemon.service rspamd.service >>"${LOGFILE}" 2>&1
+  clamav-freshclam.service clamav-daemon.service rspamd.service \
+  grommunio-index.service grommunio-index.timer>>"${LOGFILE}" 2>&1
 
 progress 20
 writelog "Config stage: start db"
