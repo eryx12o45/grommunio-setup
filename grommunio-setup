@@ -46,6 +46,8 @@ Pin: release *
 Pin-Priority: -1
 END
 
+echo "Installing dependencies. This might take a while..."
+
 # make sure necessary packages are installed
 apt-get update >>"${LOGFILE}" 2>&1
 apt-get dist-upgrade -y >>"${LOGFILE}" 2>&1
