@@ -859,6 +859,14 @@ systemd-tmpfiles --create /etc/tmpfiles.d/grommunio-admin-api.conf >>"${LOGFILE}
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl restart grommunio-admin-api.service
 
+# rspamd.service in service-list
+cat > /etc/grommunio-admin-api/conf.d/services.yaml <<EOF
+options:
+  dashboard:
+    services:
+    - unit: rspamd.service
+EOF
+
 # apt capture non-finished packages
 apt-get --yes install -f
 
