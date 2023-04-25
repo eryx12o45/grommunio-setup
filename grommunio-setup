@@ -406,7 +406,8 @@ elif [ "${SSL_INSTALL_TYPE}" = "3" ]; then
   writelog "TLS configuration: Let's Encrypt ${SSL_EMAIL}"
 fi
 
-echo "{ \"mailWebAddress\": \"https://${FQDN}/web\" }" | jq >/tmp/config.json
+echo "{ \"mailWebAddress\": \"https://${FQDN}/web\",
+        \"rspamdWebAddress\": \"https://${FQDN}:8443/antispam\" }" | jq >/tmp/config.json
 
 progress 0
 
