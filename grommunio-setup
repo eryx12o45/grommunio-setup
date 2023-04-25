@@ -6,7 +6,7 @@
 # randpw..
 # shellcheck disable=SC2119
 
-export DEBIAN_FRONTEND=noninteractive 
+export DEBIAN_FRONTEND=noninteractive
 
 DATADIR="${0%/*}"
 if [ "${DATADIR}" = "$0" ]; then
@@ -459,7 +459,7 @@ writelog "Config stage: enable all services"
 systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
   gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
   gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  php7.4-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
+  php*-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
   clamav-freshclam.service clamav-daemon.service rspamd.service \
   grommunio-index.service grommunio-index.timer>>"${LOGFILE}" 2>&1
 
@@ -847,7 +847,7 @@ chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
 
 progress 90
 writelog "Config stage: restart all required services"
-systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromox-delivery.service \
+systemctl restart redis@grommunio.service nginx.service php*-fpm.service gromox-delivery.service \
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
