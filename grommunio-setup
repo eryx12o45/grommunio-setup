@@ -54,7 +54,7 @@ echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-sel
 SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix \
   postfix-mysql php php-igbinary php-redis sqlite3 php php-fpm curl fetchmail \
   rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin \
-  jq gnupg2 firewalld clamav clamav-freshclam clamav-daemon)
+  jq firewalld clamav clamav-freshclam clamav-daemon)
 apt-get install -y "${SYSTEM_PACKAGES[@]}" >>"${LOGFILE}" 2>&1
 
 writelog "Welcome dialog"
@@ -117,8 +117,7 @@ user_management >>"${LOGFILE}" 2>&1
 # shellcheck source=common/repo
 PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
   grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
-  grommunio-dav system-user-groweb system-user-grosync system-user-grodav \
-  system-user-gromox system-user-groadm system-user-grommunio)
+  grommunio-dav)
 . "${DATADIR}/common/repo"
 setup_repo
 
@@ -605,6 +604,14 @@ EOF
 cat >/usr/sbin/grommunio-spam-run <<'EOF'
 #!/bin/bash
 
+# add "-d" to delete junk emails after they have been learned
+if [ "$1" = "-d" ]
+then
+   DO_DEL=1
+else
+   DO_DEL=0
+fi
+
 MYSQL_CFG="/etc/gromox/mysql_adaptor.cfg"
 
 if [ ! -e "${MYSQL_CFG}" ] ; then
@@ -617,29 +624,28 @@ MYSQL_USERNAME=$(sed -ne 's/mysql_username\s*=\s*\(.*\)\s*/-u\1/pI' ${MYSQL_CFG}
 MYSQL_PASSWORD=$(sed -ne 's/mysql_password\s*=\s*\(.*\)\s*/-p\1/pI' ${MYSQL_CFG})
 MYSQL_DBNAME=$(sed -ne 's/mysql_dbname\s*=\s*\(.*\)\s*/\1/pI' ${MYSQL_CFG})
 MYSQL_HOST=$(sed -ne 's/mysql_host\s*=\s*\(.*\)\s*/-h\1/pI' ${MYSQL_CFG})
-MYSQL_PORT=$(sed -ne 's/mysql_port\s*=\s*\(.*\)\s*/-P\1/pI' ${MYSQL_CFG})
-MYSQL_QUERY='SELECT `username`, `maildir` from users where `id` <> 0 and `maildir` <> "";'
-MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME}" "${MYSQL_PASSWORD}" "${MYSQL_HOST}" "${MYSQL_PORT}" "${MYSQL_DBNAME}")
-
-echo "${MYSQL_QUERY[@]}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
-  echo 'select message_id,mid_string from messages where parent_fid=0x17;' | sqlite3 "${MAILDIR}/exmdb/exchange.sqlite3" -tabs -noheader | while read -r SPAMMSG; do
-        MSGFILE=$(echo "${SPAMMSG}" | awk '{ print $2 }')
-        if [[ -z "$MSGFILE" ]]; then
-                continue
-        fi
-        MSGID=$(echo "${SPAMMSG}" | awk '{ print $1 }')
-        echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
-        MSGFILE="$MAILDIR/eml/$MSGFILE"
-        if [[ ! -f "$MSGFILE" ]]; then
-                continue
-        fi
+MYSQL_QUERY="SELECT username,maildir from users where id <> 0 and maildir <> \"\";"
+MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME:=-uroot}" "${MYSQL_PASSWORD:=}" "${MYSQL_HOST:=-hlocalhost}" "${MYSQL_DBNAME:=grommunio}")
+SQLITE_QUERY='select message_id,mid_string from messages where parent_fid=0x17;'
+# shellcheck disable=SC2068
+if ${MYSQL_CMD[@]}<<<"exit"&>/dev/null; then
+  echo "${MYSQL_QUERY}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
+    echo "${SQLITE_QUERY}" | sqlite3 "${MAILDIR}/exmdb/exchange.sqlite3" -tabs -noheader | while read -r MESSAGEID MIDSTRING; do
+      echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
+      MSGFILE="$MAILDIR/eml/$MIDSTRING"
+      if [[ ! -f "$MSGFILE" ]]; then
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc learn_spam | systemd-cat -t grommunio-spam-run
+      else
         rspamc learn_spam "$MSGFILE" | systemd-cat -t grommunio-spam-run
-        EXITSTATUS=$?
-        if [ ${EXITSTATUS} -eq 0 ]; then
-                /usr/libexec/gromox/delmsg -d "${MAILDIR}" -f 0x17 "${MSGID}" | systemd-cat -t grommunio-spam-run
-        fi
+      fi
+      if [ ${DO_DEL} -eq 1 ]; then
+        /usr/sbin/gromox-mbop -u "${USERNAME}" delmsg -f 0x17 "${MESSAGEID}" | systemd-cat -t grommunio-spam-run
+      fi
+    done
   done
-done
+else
+  echo "MySQL-Connection couldn't be established, please check your configuration." | systemd-cat -t grommunio-spam-run -p err
+fi
 EOF
 chmod +x /usr/sbin/grommunio-spam-run
 
@@ -801,10 +807,12 @@ systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
 {
-chmod 770 /var/log/grommunio-dav
-chmod 660 /var/log/grommunio-dav/*
-chmod 770 /var/log/grommunio-sync
-chmod 660 /var/log/grommunio-sync/*
+chmod -R u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
+chown -Rf grosync:grosync /var/log/grommunio-sync
+chown -Rf grodav:grodav /var/log/grommunio-dav
+#chmod 660 /var/log/grommunio-dav/*
+#chmod 770 /var/log/grommunio-sync
+#chmod 660 /var/log/grommunio-sync/*
 } >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
