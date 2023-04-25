@@ -56,6 +56,8 @@ SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix \
   rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin \
   jq firewalld clamav clamav-freshclam clamav-daemon)
 apt-get install -y "${SYSTEM_PACKAGES[@]}" >>"${LOGFILE}" 2>&1
+# disable opcache
+phpdismod opcache
 
 writelog "Welcome dialog"
 dialog_welcome
