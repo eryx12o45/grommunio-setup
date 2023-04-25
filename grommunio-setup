@@ -126,6 +126,8 @@ setup_repo
 # fix run directory for php-fpm
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
 systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
+# fix folder permissions
+chown -Rf groweb:groweb /var/lib/grommunio-web
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
