@@ -27,7 +27,7 @@ SOURCES
 apt-get update 2>&1 |tee -a "${LOGFILE}"
 apt-get install -y "${PACKAGES[@]}" 2>&1 |tee -a "${LOGFILE}"
 # tickets are useless... 
-rm -Rf /usr/share/grommunio-common/nginx/upstreams.d/grom*upstream.conf
+rm -f /usr/share/grommunio-common/nginx/upstreams.d/grom*upstream.conf
 apt-get install -f 2>&1 |tee -a "${LOGFILE}"
 echo
 echo -e " \x1b[36m▼\x1b[0m operation completed"
