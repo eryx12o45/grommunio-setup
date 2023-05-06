@@ -851,7 +851,7 @@ systemctl restart redis@grommunio.service nginx.service php*-fpm.service gromox-
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
-  grommunio-spam-run.service rpsmad.service >>"${LOGFILE}" 2>&1
+  grommunio-spam-run.service rspamd.service >>"${LOGFILE}" 2>&1
 
 # grommunio-admin-api systemd-tmpfiles wrong user for nginx
 cp /usr/lib/tmpfiles.d/grommunio-admin-api.conf /etc/tmpfiles.d/
