@@ -468,7 +468,8 @@ systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.se
   gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
   php*-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
   clamav-freshclam.service clamav-daemon.service rspamd.service \
-  grommunio-index.service grommunio-index.timer>>"${LOGFILE}" 2>&1
+  grommunio-index.service grommunio-index.timer grommunio-admin-api.socket \
+  >>"${LOGFILE}" 2>&1
 
 progress 20
 writelog "Config stage: start db"
