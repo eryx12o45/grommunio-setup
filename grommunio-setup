@@ -462,14 +462,15 @@ fi
 ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
 chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 
+# check for os-release
+grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
+
 writelog "Config stage: enable all services"
-systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
-  gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
-  gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  php*-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
-  clamav-freshclam.service clamav-daemon.service rspamd.service \
-  grommunio-index.service grommunio-index.timer grommunio-admin-api.socket \
-  >>"${LOGFILE}" 2>&1
+SERVICES=(redis@grommunio.service php$PHPVER-fpm.service nginx.service
+$(systemctl list-unit-files 'grom*' --no-legend|cut -d\  -f1 |grep -v snapshot)
+  clamav-freshclam.service clamav-daemon.service rspamd.service)
+# shellcheck disable=SC2068
+systemctl enable ${SERVICES[@]} >>"${LOGFILE}" 2>&1
 
 progress 20
 writelog "Config stage: start db"
@@ -484,8 +485,6 @@ if ! grep -qF -- "/run/mysqld" /etc/fstab; then
   mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 fi
 writelog "Config stage: put php files into place"
-# check for os-release
-grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
 if [ -e "/etc/php/$PHPVER/fpm/php-fpm.conf.default" ]; then
   mv "/etc/php/$PHPVER/fpm/php-fpm.conf.default" "/etc/php/$PHPVER/fpm/php-fpm.conf" >>"${LOGFILE}" 2>&1
 fi
@@ -856,11 +855,8 @@ chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
 
 progress 90
 writelog "Config stage: restart all required services"
-systemctl restart redis@grommunio.service nginx.service php*-fpm.service gromox-delivery.service \
-  gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
-  gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
-  grommunio-spam-run.service rspamd.service >>"${LOGFILE}" 2>&1
+# shellcheck disable=SC2068
+systemctl restart saslauthd.service ${SERVICES[@]} >>"${LOGFILE}" 2>&1
 
 # grommunio-admin-api systemd-tmpfiles wrong user for nginx
 cp /usr/lib/tmpfiles.d/grommunio-admin-api.conf /etc/tmpfiles.d/
