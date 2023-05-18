@@ -4,7 +4,7 @@
 # Interactive grommunio setup
 
 # randpw..
-# shellcheck disable=SC2119
+# shellcheck disable=SC2119 disable=2016
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -114,7 +114,7 @@ unset SSL_KEY
 
 writelog "Installation / update of packages"
 user_management() {
-  adduser postfix sasl 
+  adduser postfix sasl
 }
 user_management >>"${LOGFILE}" 2>&1
 
@@ -124,12 +124,19 @@ PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
   grommunio-dav)
 . "${DATADIR}/common/repo"
 setup_repo
-
+writelog "Installing Grommunio-Packages"
+{
+apt-get update
+apt-get install -y "${PACKAGES[@]}"
+# tickets are useless... grommunio-{dav,sync} -upsteam.conf's
+rm -fv /usr/share/grommunio-common/nginx/upstreams.d/grom*upstream.conf
+apt-get install -f
+} 2>&1 |tee -a "${LOGFILE}"
 # fix run directory for php-fpm
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
 systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 # fix folder permissions
-chown -Rf groweb:groweb /var/lib/grommunio-web
+chown -Rfv groweb:groweb /var/lib/grommunio-web >>"${LOGFILE}" 2>&1
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
@@ -453,7 +460,7 @@ if [ -e /etc/grommunio-admin-common/nginx-ssl.conf ]; then
   rm -f /etc/grommunio-admin-common/nginx-ssl.conf
 fi
 ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
-chown gromox:gromox /etc/grommunio-common/ssl/*
+chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 
 writelog "Config stage: enable all services"
 systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
@@ -476,17 +483,19 @@ if ! grep -qF -- "/run/mysqld" /etc/fstab; then
   mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 fi
 writelog "Config stage: put php files into place"
-if [ -e "/etc/php/7.4/fpm/php-fpm.conf.default" ]; then
-  mv /etc/php/7.4/fpm/php-fpm.conf.default /etc/php/7.4/fpm/php-fpm.conf >>"${LOGFILE}" 2>&1
+# check for os-release
+grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.conf.default" ]; then
+  mv "/etc/php/$PHPVER/fpm/php-fpm.conf.default" "/etc/php/$PHPVER/fpm/php-fpm.conf" >>"${LOGFILE}" 2>&1
 fi
-if [ ! -e "/etc/php/7.4/fpm/pool.d/gromox.conf" ]; then
-  cp -f /usr/share/gromox/fpm-gromox.conf.sample /etc/php/7.4/fpm/pool.d/gromox.conf >>"${LOGFILE}" 2>&1
+if [ ! -e "/etc/php/$PHPVER/fpm/pool.d/gromox.conf" ]; then
+  cp -f "/usr/share/gromox/fpm-gromox.conf.sample" "/etc/php/$PHPVER/fpm/pool.d/gromox.conf" >>"${LOGFILE}" 2>&1
 fi
-if [ -e /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf ] && [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-sync.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-sync.conf" ] && [ ! -e "/etc/php/$PHPVER/fpm/pool.d/pool-grommunio-sync.conf" ]; then
+  ln -s "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-sync.conf" "/etc/php/$PHPVER/fpm/pool.d/" >>"${LOGFILE}" 2>&1
 fi
-if [ -e /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf ] && [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-dav.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-dav.conf" ] && [ ! -e "/etc/php/$PHPVER/fpm/pool.d/pool-grommunio-dav.conf" ]; then
+  ln -s "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-dav.conf" "/etc/php/$PHPVER/fpm/pool.d/" >>"${LOGFILE}" 2>&1
 fi
 
 writelog "Remove default nginx host config"
@@ -814,12 +823,11 @@ systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
 {
-chmod -R u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
-chown -Rf grosync:grosync /var/log/grommunio-sync
-chown -Rf grodav:grodav /var/log/grommunio-dav
-#chmod 660 /var/log/grommunio-dav/*
-#chmod 770 /var/log/grommunio-sync
-#chmod 660 /var/log/grommunio-sync/*
+chmod -Rfv u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
+chown -Rfv grosync:grosync /var/log/grommunio-sync
+chown -Rfv grodav:grodav /var/log/grommunio-dav
+chmod -Rfv u=rwX,g=rX,o=-rwx /etc/gromox
+chown -Rfv grommunio:gromox /etc/gromox /var/lib/grommunio-admin-api
 } >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
@@ -875,5 +883,3 @@ apt-get --yes install -f
 progress 100
 writelog "Config stage: completed"
 setup_done
-
-exit 0
