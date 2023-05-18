@@ -3,7 +3,8 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 
 setup_repo() {
-  local uri tmpkey kr
+  local uri kr
+  grep -q bullseye /etc/os-release && DEB=11 || DEB=12
   uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
@@ -18,17 +19,13 @@ setup_repo() {
   fi
   cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
-URIs: https://download.grommunio.com/community/Debian_11
-Suites: Debian_11
+URIs: https://download.grommunio.com/community/Debian_$DEB
+Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
+Enabled: yes
 SOURCES
 
-apt-get update 2>&1 |tee -a "${LOGFILE}"
-apt-get install -y "${PACKAGES[@]}" 2>&1 |tee -a "${LOGFILE}"
-# tickets are useless... 
-rm -f /usr/share/grommunio-common/nginx/upstreams.d/grom*upstream.conf
-apt-get install -f 2>&1 |tee -a "${LOGFILE}"
 echo
 echo -e " \x1b[36m▼\x1b[0m operation completed"
 echo
