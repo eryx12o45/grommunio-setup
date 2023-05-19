@@ -3,33 +3,33 @@
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
 
 setup_repo() {
-  local uri tmpkey kr
+  local uri kr
+  grep -q bullseye /etc/os-release && DEB=11 || DEB=12
   uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
-  tmpkey=$(mktemp)
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
   echo
   mkdir -p /etc/apt/keyrings
-  kr=/etc/apt/keyrings/download.grommunio.com.gpg
+  kr=/etc/apt/keyrings/download.grommunio.com.asc
   if [ ! -f $kr ]; then
-    /usr/lib/apt/apt-helper download-file "${uri}" "${tmpkey}"
-    gpg --dearmor --output "${kr}" "${tmpkey}"
-    rm "${tmpkey}"
+    if [ ! "$(/usr/lib/apt/apt-helper download-file "${uri}" "${kr}")" ] ; then
+      echo -e "\x1b[36m▼\x1b[0m grommunio-setup is ending. Keyring couldn't be installed!"
+      exit 1
+    fi
   fi
-cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
+  cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
-URIs: https://download.grommunio.com/community/Debian_11
-Suites: Debian_11
+URIs: https://download.grommunio.com/community/Debian_$DEB
+Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
+Enabled: yes
 SOURCES
 
-  apt-get update 2>&1 |tee -a "${LOGFILE}"
-  apt-get install -y "${PACKAGES[@]}" 2>&1 |tee -a "${LOGFILE}"
-  echo
-  echo -e " \x1b[36m▼\x1b[0m operation completed"
-  echo
-  # keep visual output on the screen for a glimpse so admin can decide
-  # if the logfile needs to be inspected.
-  sleep 1
+echo
+echo -e " \x1b[36m▼\x1b[0m operation completed"
+echo
+# keep visual output on the screen for a glimpse so admin can decide
+# if the logfile needs to be inspected.
+sleep 1
 }

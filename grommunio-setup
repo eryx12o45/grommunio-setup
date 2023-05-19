@@ -4,9 +4,9 @@
 # Interactive grommunio setup
 
 # randpw..
-# shellcheck disable=SC2119
+# shellcheck disable=SC2119 disable=2016
 
-export DEBIAN_FRONTEND=noninteractive 
+export DEBIAN_FRONTEND=noninteractive
 
 DATADIR="${0%/*}"
 if [ "${DATADIR}" = "$0" ]; then
@@ -46,6 +46,8 @@ Pin: release *
 Pin-Priority: -1
 END
 
+echo "Installing dependencies. This might take a while..."
+
 # make sure necessary packages are installed
 apt-get update >>"${LOGFILE}" 2>&1
 apt-get dist-upgrade -y >>"${LOGFILE}" 2>&1
@@ -54,8 +56,10 @@ echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-sel
 SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix \
   postfix-mysql php php-igbinary php-redis sqlite3 php php-fpm curl fetchmail \
   rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin \
-  jq gnupg2 firewalld clamav clamav-freshclam clamav-daemon)
+  jq firewalld clamav clamav-freshclam clamav-daemon)
 apt-get install -y "${SYSTEM_PACKAGES[@]}" >>"${LOGFILE}" 2>&1
+# disable opcache
+phpdismod opcache
 
 writelog "Welcome dialog"
 dialog_welcome
@@ -110,21 +114,29 @@ unset SSL_KEY
 
 writelog "Installation / update of packages"
 user_management() {
-  adduser postfix sasl 
+  adduser postfix sasl
 }
 user_management >>"${LOGFILE}" 2>&1
 
 # shellcheck source=common/repo
 PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
   grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
-  grommunio-dav system-user-groweb system-user-grosync system-user-grodav \
-  system-user-gromox system-user-groadm system-user-grommunio)
+  grommunio-dav)
 . "${DATADIR}/common/repo"
 setup_repo
-
+writelog "Installing Grommunio-Packages"
+{
+apt-get update
+apt-get install -y "${PACKAGES[@]}"
+# tickets are useless... grommunio-{dav,sync} -upsteam.conf's
+rm -fv /usr/share/grommunio-common/nginx/upstreams.d/grom*upstream.conf
+apt-get install -f
+} 2>&1 |tee -a "${LOGFILE}"
 # fix run directory for php-fpm
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
 systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
+# fix folder permissions
+chown -Rfv groweb:groweb /var/lib/grommunio-web >>"${LOGFILE}" 2>&1
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
@@ -407,7 +419,8 @@ elif [ "${SSL_INSTALL_TYPE}" = "3" ]; then
   writelog "TLS configuration: Let's Encrypt ${SSL_EMAIL}"
 fi
 
-echo "{ \"mailWebAddress\": \"https://${FQDN}/web\" }" | jq >/tmp/config.json
+echo "{ \"mailWebAddress\": \"https://${FQDN}/web\",
+        \"rspamdWebAddress\": \"https://${FQDN}:8443/antispam\" }" | jq >/tmp/config.json
 
 progress 0
 
@@ -447,15 +460,17 @@ if [ -e /etc/grommunio-admin-common/nginx-ssl.conf ]; then
   rm -f /etc/grommunio-admin-common/nginx-ssl.conf
 fi
 ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-common/nginx-ssl.conf
-chown gromox:gromox /etc/grommunio-common/ssl/*
+chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
+
+# check for os-release
+grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
 
 writelog "Config stage: enable all services"
-systemctl enable redis@grommunio.service gromox-delivery.service gromox-event.service \
-  gromox-http.service gromox-imap.service gromox-midb.service gromox-pop3.service \
-  gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  php7.4-fpm.service nginx.service grommunio-admin-api.service saslauthd.service \
-  clamav-freshclam.service clamav-daemon.service rspamd.service \
-  grommunio-index.service grommunio-index.timer>>"${LOGFILE}" 2>&1
+SERVICES=(redis@grommunio.service php$PHPVER-fpm.service nginx.service
+$(systemctl list-unit-files 'grom*' --no-legend|cut -d\  -f1 |grep -v snapshot)
+  clamav-freshclam.service clamav-daemon.service rspamd.service)
+# shellcheck disable=SC2068
+systemctl enable ${SERVICES[@]} >>"${LOGFILE}" 2>&1
 
 progress 20
 writelog "Config stage: start db"
@@ -470,17 +485,17 @@ if ! grep -qF -- "/run/mysqld" /etc/fstab; then
   mount /var/spool/postfix/run/mysqld >>"${LOGFILE}" 2>&1
 fi
 writelog "Config stage: put php files into place"
-if [ -e "/etc/php/7.4/fpm/php-fpm.conf.default" ]; then
-  mv /etc/php/7.4/fpm/php-fpm.conf.default /etc/php/7.4/fpm/php-fpm.conf >>"${LOGFILE}" 2>&1
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.conf.default" ]; then
+  mv "/etc/php/$PHPVER/fpm/php-fpm.conf.default" "/etc/php/$PHPVER/fpm/php-fpm.conf" >>"${LOGFILE}" 2>&1
 fi
-if [ ! -e "/etc/php/7.4/fpm/pool.d/gromox.conf" ]; then
-  cp -f /usr/share/gromox/fpm-gromox.conf.sample /etc/php/7.4/fpm/pool.d/gromox.conf >>"${LOGFILE}" 2>&1
+if [ ! -e "/etc/php/$PHPVER/fpm/pool.d/gromox.conf" ]; then
+  cp -f "/usr/share/gromox/fpm-gromox.conf.sample" "/etc/php/$PHPVER/fpm/pool.d/gromox.conf" >>"${LOGFILE}" 2>&1
 fi
-if [ -e /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf ] && [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-sync.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-sync.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-sync.conf" ] && [ ! -e "/etc/php/$PHPVER/fpm/pool.d/pool-grommunio-sync.conf" ]; then
+  ln -s "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-sync.conf" "/etc/php/$PHPVER/fpm/pool.d/" >>"${LOGFILE}" 2>&1
 fi
-if [ -e /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf ] && [ ! -e "/etc/php/7.4/fpm/pool.d/pool-grommunio-dav.conf" ]; then
-  ln -s /etc/php/7.4/fpm/php-fpm.d/pool-grommunio-dav.conf /etc/php/7.4/fpm/pool.d/ >>"${LOGFILE}" 2>&1
+if [ -e "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-dav.conf" ] && [ ! -e "/etc/php/$PHPVER/fpm/pool.d/pool-grommunio-dav.conf" ]; then
+  ln -s "/etc/php/$PHPVER/fpm/php-fpm.d/pool-grommunio-dav.conf" "/etc/php/$PHPVER/fpm/pool.d/" >>"${LOGFILE}" 2>&1
 fi
 
 writelog "Remove default nginx host config"
@@ -605,6 +620,14 @@ EOF
 cat >/usr/sbin/grommunio-spam-run <<'EOF'
 #!/bin/bash
 
+# add "-d" to delete junk emails after they have been learned
+if [ "$1" = "-d" ]
+then
+   DO_DEL=1
+else
+   DO_DEL=0
+fi
+
 MYSQL_CFG="/etc/gromox/mysql_adaptor.cfg"
 
 if [ ! -e "${MYSQL_CFG}" ] ; then
@@ -617,29 +640,28 @@ MYSQL_USERNAME=$(sed -ne 's/mysql_username\s*=\s*\(.*\)\s*/-u\1/pI' ${MYSQL_CFG}
 MYSQL_PASSWORD=$(sed -ne 's/mysql_password\s*=\s*\(.*\)\s*/-p\1/pI' ${MYSQL_CFG})
 MYSQL_DBNAME=$(sed -ne 's/mysql_dbname\s*=\s*\(.*\)\s*/\1/pI' ${MYSQL_CFG})
 MYSQL_HOST=$(sed -ne 's/mysql_host\s*=\s*\(.*\)\s*/-h\1/pI' ${MYSQL_CFG})
-MYSQL_PORT=$(sed -ne 's/mysql_port\s*=\s*\(.*\)\s*/-P\1/pI' ${MYSQL_CFG})
-MYSQL_QUERY='SELECT `username`, `maildir` from users where `id` <> 0 and `maildir` <> "";'
-MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME}" "${MYSQL_PASSWORD}" "${MYSQL_HOST}" "${MYSQL_PORT}" "${MYSQL_DBNAME}")
-
-echo "${MYSQL_QUERY[@]}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
-  echo 'select message_id,mid_string from messages where parent_fid=0x17;' | sqlite3 "${MAILDIR}/exmdb/exchange.sqlite3" -tabs -noheader | while read -r SPAMMSG; do
-        MSGFILE=$(echo "${SPAMMSG}" | awk '{ print $2 }')
-        if [[ -z "$MSGFILE" ]]; then
-                continue
-        fi
-        MSGID=$(echo "${SPAMMSG}" | awk '{ print $1 }')
-        echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
-        MSGFILE="$MAILDIR/eml/$MSGFILE"
-        if [[ ! -f "$MSGFILE" ]]; then
-                continue
-        fi
+MYSQL_QUERY="SELECT username,maildir from users where id <> 0 and maildir <> \"\";"
+MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME:=-uroot}" "${MYSQL_PASSWORD:=}" "${MYSQL_HOST:=-hlocalhost}" "${MYSQL_DBNAME:=grommunio}")
+SQLITE_QUERY='select message_id,mid_string from messages where parent_fid=0x17;'
+# shellcheck disable=SC2068
+if ${MYSQL_CMD[@]}<<<"exit"&>/dev/null; then
+  echo "${MYSQL_QUERY}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
+    echo "${SQLITE_QUERY}" | sqlite3 "${MAILDIR}/exmdb/exchange.sqlite3" -tabs -noheader | while read -r MESSAGEID MIDSTRING; do
+      echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
+      MSGFILE="$MAILDIR/eml/$MIDSTRING"
+      if [[ ! -f "$MSGFILE" ]]; then
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc learn_spam | systemd-cat -t grommunio-spam-run
+      else
         rspamc learn_spam "$MSGFILE" | systemd-cat -t grommunio-spam-run
-        EXITSTATUS=$?
-        if [ ${EXITSTATUS} -eq 0 ]; then
-                /usr/libexec/gromox/delmsg -d "${MAILDIR}" -f 0x17 "${MSGID}" | systemd-cat -t grommunio-spam-run
-        fi
+      fi
+      if [ ${DO_DEL} -eq 1 ]; then
+        /usr/sbin/gromox-mbop -u "${USERNAME}" delmsg -f 0x17 "${MESSAGEID}" | systemd-cat -t grommunio-spam-run
+      fi
+    done
   done
-done
+else
+  echo "MySQL-Connection couldn't be established, please check your configuration." | systemd-cat -t grommunio-spam-run -p err
+fi
 EOF
 chmod +x /usr/sbin/grommunio-spam-run
 
@@ -801,10 +823,11 @@ systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
 {
-chmod 770 /var/log/grommunio-dav
-chmod 660 /var/log/grommunio-dav/*
-chmod 770 /var/log/grommunio-sync
-chmod 660 /var/log/grommunio-sync/*
+chmod -Rfv u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
+chown -Rfv grosync:grosync /var/log/grommunio-sync
+chown -Rfv grodav:grodav /var/log/grommunio-dav
+chmod -Rfv u=rwX,g=rX,o=-rwx /etc/gromox
+chown -Rfv grommunio:gromox /etc/gromox /var/lib/grommunio-admin-api
 } >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
@@ -832,11 +855,8 @@ chown grommunio /etc/grommunio-admin-common/license >>"${LOGFILE}" 2>&1
 
 progress 90
 writelog "Config stage: restart all required services"
-systemctl restart redis@grommunio.service nginx.service php7.4-fpm.service gromox-delivery.service \
-  gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
-  gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
-  grommunio-admin-api.service saslauthd.service clamav-freshclam.service clamav-daemon.service \
-  grommunio-spam-run.service rpsmad.service >>"${LOGFILE}" 2>&1
+# shellcheck disable=SC2068
+systemctl restart saslauthd.service ${SERVICES[@]} >>"${LOGFILE}" 2>&1
 
 # grommunio-admin-api systemd-tmpfiles wrong user for nginx
 cp /usr/lib/tmpfiles.d/grommunio-admin-api.conf /etc/tmpfiles.d/
@@ -846,11 +866,17 @@ systemd-tmpfiles --create /etc/tmpfiles.d/grommunio-admin-api.conf >>"${LOGFILE}
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl restart grommunio-admin-api.service
 
+# rspamd.service in service-list
+cat > /etc/grommunio-admin-api/conf.d/services.yaml <<EOF
+options:
+  dashboard:
+    services:
+    - unit: rspamd.service
+EOF
+
 # apt capture non-finished packages
 apt-get --yes install -f
 
 progress 100
 writelog "Config stage: completed"
 setup_done
-
-exit 0
