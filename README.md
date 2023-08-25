@@ -1,7 +1,7 @@
 ### General Info
-Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian 11.
+Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian 12.
 
-Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/447-debian-11-clean-install-script).
+Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/1166-debian-bookworm-12-grommunio-setup).
 
 ### Requirements
 * enable ipv6 on your system before starting
@@ -12,6 +12,7 @@ Please feel free to contribute either directly in Github or add your input [here
 git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
+* for Debian Bullseye(11) / checkout the branch named bullseye
 
 ### Additions
 #### Fix Grommunio Admin Live Status page
