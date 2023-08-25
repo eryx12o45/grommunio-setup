@@ -9,7 +9,7 @@ Please feel free to contribute either directly in Github or add your input [here
 
 ### Usage
 ```
-git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
+git clone --branch=bullseye https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
 
