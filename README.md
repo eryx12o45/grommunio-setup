@@ -29,8 +29,12 @@ https://github.com/crpb/grommunio/tree/main/setup/postfix
 #### Configure system mails
 ```
 apt-get install postix-pcre
+
 postconf smtp_generic_maps=pcre:/etc/postfix/generic
+printf "/root(.*)/\tgrommunio@%s" "$(grommunio-admin domain query domainname|head -n1)" >> /etc/postfix/generic
+OR
 printf "/root@$(postconf -h myhostname)/\tgrommunio@%s\n" "$(grommunio-admin domain query domainname|head -n1)" >> /etc/postfix/generic
+
 printf "root:\tSERVERMAILS@SERVERMAILS.TLD\n" >> /etc/aliases
 postalias /etc/aliases
 postfix reload

@@ -619,6 +619,30 @@ location /rspamd/ {
 }
 EOF
 
+if ! [ -e /etc/gromox/spamrun.cfg ]; then
+  cat << EOH > /etc/gromox/spamrun.cfg
+# rspamd might run somewhere else and isn't configured as multi-instance
+# see rspamc(1) for more options
+# RSPAMC_OPTS=( -h a.b.c.d:1234 -P myverysecurepass )
+RSPAMC_OPTS=()
+
+# SPAM #
+# Only scan messages which are older than n days.
+# Default: SPAMRUN_DAYS=7
+SPAMRUN_DAYS=7
+# Delete the message after we scanned it? 
+# Default: SPAMRUN_DELETE=false
+SPAMRUN_DELETE=false
+
+# HAM #
+# Default: HAMRUN_FOLDER=NON-JUNK
+HAMRUN_FOLDER=NON-JUNK
+# Delete *copied* Mails which should be learned as HAM?
+# Default: HAMRUN_DELETE=false
+HAMRUN_DELETE=false
+EOH
+fi
+
 writelog "Add grommunio-antispam service files"
 cat >/lib/systemd/system/grommunio-spam-run.service <<'EOF'
 [Unit]
@@ -655,36 +679,46 @@ EOF
 
 cat >/usr/sbin/grommunio-spam-run <<'EOF'
 #!/bin/bash
-# vim:ts=2 sts=2 sw=2 et
+# vim:ts=2 sts=2 sw=2 expandtab
 
-if ! [ -e /etc/gromox/spamrun.cfg ]; then
-  cat << EOC > /etc/gromox/spamrun.cfg
-# Only scan messages which are older than n days.
-# Default: SPAMRUN_DAYS=7
+#   # auto config if not present
+#   if ! [ -e /etc/gromox/spamrun.cfg ]; then
+#     cat << eoh > /etc/gromox/spamrun.cfg
+#   # spam #
+#   # only scan messages which are older than n days.
+#   # default: spamrun_days=7
+#   spamrun_days=7
+#   # delete the message after we scanned it? 
+#   # default: spamrun_delete=false
+#   spamrun_delete=false
+#   
+#   # ham #
+#   # default: hamrun_folder=non-junk
+#   hamrun_folder=non-junk
+#   # delete *copied* mails which should be learned as ham?
+#   # default: hamrun_delete=false
+#   hamrun_delete=false
+#   eoh
+#   fi
+
 SPAMRUN_DAYS=7
-# To delete the message after the scan set to 'true' 
-# Default: SPAMRUN_DELETE=false
 SPAMRUN_DELETE=false
-EOC
-fi
-
-
-# source config file
 if [ -r /etc/gromox/spamrun.cfg ]; then
   . /etc/gromox/spamrun.cfg
 fi
 if [ -z ${SPAMRUN_DAYS+x} ]; then
   SQLITE_QUERY='select message_id,mid_string from messages where parent_fid=0x17;'
 else
-  SQLITE_QUERY="""
-  SELECT m.message_id,m.mid_string
-    FROM messages m
-    INNER JOIN message_properties mp1
-    ON mp1.message_id = m.message_id
-    AND mp1.proptag = 235274304
-    AND (mp1.propval/10000000-11644473600) < unixepoch('now','-$SPAMRUN_DAYS days')
-    WHERE m.parent_fid = 0x17;
-    """
+read -r -d '' SQLITE_QUERY << EOSQL
+SELECT m.message_id,m.mid_string
+FROM messages m
+INNER JOIN message_properties mp1
+ON mp1.message_id = m.message_id
+AND mp1.proptag = 235274304
+AND (mp1.propval/10000000-11644473600) < unixepoch('now','-$SPAMRUN_DAYS days')
+WHERE m.parent_fid = 0x17;
+EOSQL
+
 fi
 DO_DEL="${SPAMRUN_DELETE:-"false"}"
 # add "-d" to delete junk emails after they have been learned
@@ -694,45 +728,215 @@ then
 fi
 
 MYSQL_CFG="/etc/gromox/mysql_adaptor.cfg"
-
 if [ ! -e "${MYSQL_CFG}" ] ; then
-  echo "MySQL configuration not found. (${MYSQL_CFG})"
+  echo "MySQL configuration not found. ($MYSQL_CFG)"
   exit 1
 fi
-
 MYSQL_PARAMS="--skip-column-names --skip-line-numbers"
-MYSQL_USERNAME=$(sed -ne 's/mysql_username\s*=\s*\(.*\)\s*/-u\1/pI' ${MYSQL_CFG})
-MYSQL_PASSWORD=$(sed -ne 's/mysql_password\s*=\s*\(.*\)\s*/-p\1/pI' ${MYSQL_CFG})
-MYSQL_DBNAME=$(sed -ne 's/mysql_dbname\s*=\s*\(.*\)\s*/\1/pI' ${MYSQL_CFG})
-MYSQL_HOST=$(sed -ne 's/mysql_host\s*=\s*\(.*\)\s*/-h\1/pI' ${MYSQL_CFG})
+MYSQL_USERNAME=$(sed -ne 's/^mysql_username\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_USERNAME" ]; then
+  MYSQL_USERNAME="root"
+fi
+MYSQL_PASSWORD=$(sed -ne 's/^mysql_password\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+MYSQL_DBNAME=$(sed -ne 's/^mysql_dbname\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_DBNAME" ]; then
+  MYSQL_DBNAME="grommunio"
+fi
+if [ "${MYSQL_DBNAME:0:1}" = "-" ]; then
+  echo "Cannot use that dbname: ${MYSQL_DBNAME}"
+  exit 1
+fi
+MYSQL_HOST=$(sed -ne 's/^mysql_host\s*=\s*\(.*\)/-h\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_HOST" ]; then
+  MYSQL_HOST="localhost"
+fi
 MYSQL_QUERY="SELECT username,maildir from users where id <> 0 and maildir <> \"\";"
-MYSQL_CMD=("mysql" "${MYSQL_PARAMS}" "${MYSQL_USERNAME:=-uroot}" "${MYSQL_PASSWORD:=}" "${MYSQL_HOST:=-hlocalhost}" "${MYSQL_DBNAME:=grommunio}")
+
+CONFIG_FILE=$(mktemp)
+cat <<CONFFILE >"${CONFIG_FILE}"
+[client]
+user=${MYSQL_USERNAME}
+password=${MYSQL_PASSWORD}
+host=${MYSQL_HOST}
+database=${MYSQL_DBNAME}
+CONFFILE
+
+cleanup() { rm -f "$CONFIG_FILE" ; }
+trap cleanup EXIT
+
+MYSQL_CMD="mysql --defaults-file=${CONFIG_FILE} ${MYSQL_PARAMS}"
 # shellcheck disable=SC2068
-if ${MYSQL_CMD[@]}<<<"exit"&>/dev/null; then
-  echo "${MYSQL_QUERY}" | ${MYSQL_CMD[@]} | while read -r USERNAME MAILDIR ; do
+if ${MYSQL_CMD}<<<"exit"&>/dev/null; then
+  ${MYSQL_CMD} <<< "${MYSQL_QUERY}"| while read -r USERNAME MAILDIR ; do
   sqlite3 -readonly -tabs -noheader "${MAILDIR}/exmdb/exchange.sqlite3" "$SQLITE_QUERY" |
     while read -r MESSAGEID MIDSTRING; do
       echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
       MSGFILE="$MAILDIR/eml/$MIDSTRING"
       if [[ ! -f "$MSGFILE" ]]; then
-        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc learn_spam | systemd-cat -t grommunio-spam-run
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc ${RSPAMC_OPTS[@]} learn_spam | systemd-cat -t grommunio-spam-run
       else
-        rspamc learn_spam --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-spam-run
+        rspamc ${RSPAMC_OPTS[@]} learn_spam --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-spam-run
       fi
-      if [ ${DO_DEL} == "true" ]; then
+      if [ "${DO_DEL}" == "true" ]; then
         /usr/sbin/gromox-mbop -u "${USERNAME}" delmsg -f 0x17 "${MESSAGEID}" | systemd-cat -t grommunio-spam-run
       fi
     done
-    rm -f "${SPAMLIST}"
   done
 else
   echo "MySQL-Connection couldn't be established, please check your configuration." | systemd-cat -t grommunio-spam-run -p err
 fi
 EOF
+
 chmod +x /usr/sbin/grommunio-spam-run
 
 systemctl daemon-reload >>"${LOGFILE}" 2>&1
 systemctl enable --now grommunio-spam-run.timer grommunio-spam-run.service >>"${LOGFILE}" 2>&1
+
+writelog "Add grommunio-PROham service files"
+cat >/lib/systemd/system/grommunio-ham-run.service <<'EOF'
+[Unit]
+Description=ham classification, training and cleanup run
+
+[Service]
+ProtectSystem=full
+ProtectHome=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictRealtime=true
+Type=oneshot
+ExecStart=/usr/sbin/grommunio-ham-run
+EOF
+
+cat >/lib/systemd/system/grommunio-ham-run.timer <<'EOF'
+[Unit]
+Description=Daily ham classification, training and cleanup run
+
+[Timer]
+OnCalendar=daily
+AccuracySec=13h
+Persistent=true
+RandomizedDelaySec=7000
+
+[Install]
+WantedBy=timers.target
+EOF
+
+cat >/usr/sbin/grommunio-ham-run <<'EOF'
+#!/bin/bash
+# vim:ts=2 sts=2 sw=2 expandtab
+
+#   # Auto Config if not present
+#   if ! [ -e /etc/gromox/spamrun.cfg ]; then
+#     cat << EOH > /etc/gromox/spamrun.cfg
+#   # SPAM #
+#   # Only scan messages which are older than n days.
+#   # Default: SPAMRUN_DAYS=7
+#   SPAMRUN_DAYS=7
+#   # Delete the message after we scanned it? 
+#   # Default: SPAMRUN_DELETE=false
+#   SPAMRUN_DELETE=false
+#   
+#   # HAM #
+#   # Default: HAMRUN_FOLDER=NON-JUNK
+#   HAMRUN_FOLDER=NON-JUNK
+#   # Delete *copied* Mails which should be learned as HAM?
+#   # Default: HAMRUN_DELETE=false
+#   HAMRUN_DELETE=false
+#   EOH
+#   fi
+
+RSPAMC_OPTS=()
+HAMRUN_FOLDER="NON-JUNK"
+HAMRUN_DELETE=false
+if [ -r /etc/gromox/spamrun.cfg ]; then
+  . /etc/gromox/spamrun.cfg
+fi
+
+# exmdb query
+read -r -d '' SQLITE_QUERY << EOSQL
+/* GET MESSAGES IN  HAM-FOLDER */
+SELECT m.message_id,
+m.mid_string,
+f.folder_id
+FROM messages m
+JOIN folders f
+ON m.parent_fid = f.folder_id
+JOIN folder_properties fp
+ON fp.folder_id = f.folder_id
+WHERE lower(fp.propval) = lower('${HAMRUN_FOLDER}')
+-- DON'T LOOK INTO SUBDIRECTORIES
+AND f.parent_id = 9
+EOSQL
+
+MYSQL_CFG="/etc/gromox/mysql_adaptor.cfg"
+if [ ! -e "${MYSQL_CFG}" ] ; then
+  echo "MySQL configuration not found. ($MYSQL_CFG)"
+  exit 1
+fi
+MYSQL_PARAMS="--skip-column-names --skip-line-numbers"
+MYSQL_USERNAME=$(sed -ne 's/^mysql_username\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_USERNAME" ]; then
+  MYSQL_USERNAME="root"
+fi
+MYSQL_PASSWORD=$(sed -ne 's/^mysql_password\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+MYSQL_DBNAME=$(sed -ne 's/^mysql_dbname\s*=\s*\(.*\)/\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_DBNAME" ]; then
+  MYSQL_DBNAME="grommunio"
+fi
+if [ "${MYSQL_DBNAME:0:1}" = "-" ]; then
+  echo "Cannot use that dbname: ${MYSQL_DBNAME}"
+  exit 1
+fi
+MYSQL_HOST=$(sed -ne 's/^mysql_host\s*=\s*\(.*\)/-h\1/p' ${MYSQL_CFG})
+if [ -z "$MYSQL_HOST" ]; then
+  MYSQL_HOST="localhost"
+fi
+MYSQL_QUERY="SELECT username,maildir from users where id <> 0 and maildir <> \"\";"
+
+CONFIG_FILE=$(mktemp)
+cat <<CONFFILE >"${CONFIG_FILE}"
+[client]
+user=${MYSQL_USERNAME}
+password=${MYSQL_PASSWORD}
+host=${MYSQL_HOST}
+database=${MYSQL_DBNAME}
+CONFFILE
+
+cleanup() { rm -f "$CONFIG_FILE" ; }
+trap cleanup EXIT
+
+MYSQL_CMD="mysql --defaults-file=${CONFIG_FILE} ${MYSQL_PARAMS}"
+# shellcheck disable=SC2068
+if ${MYSQL_CMD}<<<"exit"&>/dev/null; then
+  ${MYSQL_CMD} <<< "${MYSQL_QUERY}" | while read -r USERNAME MAILDIR; do
+  sqlite3 -readonly -noheader "${MAILDIR}/exmdb/exchange.sqlite3" "$SQLITE_QUERY" |
+    while IFS='|' read -r MESSAGEID MIDSTRING FOLDERID; do
+      echo "Learning ham for user ${USERNAME}" | systemd-cat -t grommunio-ham-run
+      MSGFILE="$MAILDIR/eml/$MIDSTRING"
+      if [[ ! -f "$MSGFILE" ]]; then
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc ${RSPAMC_OPTS[@]} learn_ham | systemd-cat -t grommunio-ham-run
+      else
+        rspamc ${RSPAMC_OPTS[@]} learn_ham --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-ham-run
+      fi
+      if [ "${HAMRUN_DELETE}" = "true" ]; then
+        gromox-mbop -u "${USERNAME}" delmsg -f "${FOLDERID}"  "${MESSAGEID}" | systemd-cat -t grommunio-ham-run
+      fi
+    done
+  done
+else
+  echo "MySQL-Connection couldn't be established, please check your configuration." | systemd-cat -t grommunio-spam-run -p err
+fi
+EOF
+
+chmod +x /usr/sbin/grommunio-ham-run
+
+systemctl daemon-reload >>"${LOGFILE}" 2>&1
+systemctl enable --now grommunio-ham-run.timer grommunio-ham-run.service >>"${LOGFILE}" 2>&1
 
 writelog "Configure antivirus in antispam"
 cat >/etc/rspamd/local.d/antivirus.conf <<EOF
@@ -902,7 +1106,8 @@ chmod -Rfv u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
 chown -Rfv grosync:grosync /var/log/grommunio-sync
 chown -Rfv grodav:grodav /var/log/grommunio-dav
 chmod -Rfv u=rwX,g=rX,o=-rwx /etc/gromox
-chown -Rfv grommunio:gromox /etc/gromox /var/lib/grommunio-admin-api
+chown -Rfv grommunio:gromoxcf /etc/gromox
+chown -Rfv grommunio:gromox /var/lib/grommunio-admin-api
 } >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
