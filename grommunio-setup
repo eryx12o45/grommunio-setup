@@ -621,6 +621,11 @@ EOF
 
 if ! [ -e /etc/gromox/spamrun.cfg ]; then
   cat << EOH > /etc/gromox/spamrun.cfg
+# rspamd might run somewhere else and isn't configured as multi-instance
+# see rspamc(1) for more options
+# RSPAMC_OPTS=( -h a.b.c.d:1234 -P myverysecurepass )
+RSPAMC_OPTS=()
+
 # SPAM #
 # Only scan messages which are older than n days.
 # Default: SPAMRUN_DAYS=7
@@ -768,9 +773,9 @@ if ${MYSQL_CMD}<<<"exit"&>/dev/null; then
       echo "Learning spam for user ${USERNAME}" | systemd-cat -t grommunio-spam-run
       MSGFILE="$MAILDIR/eml/$MIDSTRING"
       if [[ ! -f "$MSGFILE" ]]; then
-        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc learn_spam | systemd-cat -t grommunio-spam-run
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc ${RSPAMC_OPTS[@]} learn_spam | systemd-cat -t grommunio-spam-run
       else
-        rspamc learn_spam --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-spam-run
+        rspamc ${RSPAMC_OPTS[@]} learn_spam --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-spam-run
       fi
       if [ "${DO_DEL}" == "true" ]; then
         /usr/sbin/gromox-mbop -u "${USERNAME}" delmsg -f 0x17 "${MESSAGEID}" | systemd-cat -t grommunio-spam-run
@@ -845,6 +850,7 @@ cat >/usr/sbin/grommunio-ham-run <<'EOF'
 #   EOH
 #   fi
 
+RSPAMC_OPTS=()
 HAMRUN_FOLDER="NON-JUNK"
 HAMRUN_DELETE=false
 if [ -r /etc/gromox/spamrun.cfg ]; then
@@ -913,9 +919,9 @@ if ${MYSQL_CMD}<<<"exit"&>/dev/null; then
       echo "Learning ham for user ${USERNAME}" | systemd-cat -t grommunio-ham-run
       MSGFILE="$MAILDIR/eml/$MIDSTRING"
       if [[ ! -f "$MSGFILE" ]]; then
-        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc learn_ham | systemd-cat -t grommunio-ham-run
+        gromox-exm2eml -u "${USERNAME}" "${MESSAGEID}" 2>/dev/null | rspamc ${RSPAMC_OPTS[@]} learn_ham | systemd-cat -t grommunio-ham-run
       else
-        rspamc learn_ham --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-ham-run
+        rspamc ${RSPAMC_OPTS[@]} learn_ham --header 'Learn-Type: bulk' "$MSGFILE" | systemd-cat -t grommunio-ham-run
       fi
       if [ "${HAMRUN_DELETE}" = "true" ]; then
         gromox-mbop -u "${USERNAME}" delmsg -f "${FOLDERID}"  "${MESSAGEID}" | systemd-cat -t grommunio-ham-run
@@ -1100,7 +1106,8 @@ chmod -Rfv u=rwX,g=rwX,o=-rwx /var/log/grommunio-dav /var/log/grommunio-sync
 chown -Rfv grosync:grosync /var/log/grommunio-sync
 chown -Rfv grodav:grodav /var/log/grommunio-dav
 chmod -Rfv u=rwX,g=rX,o=-rwx /etc/gromox
-chown -Rfv grommunio:gromox /etc/gromox /var/lib/grommunio-admin-api
+chown -Rfv grommunio:gromoxcf /etc/gromox
+chown -Rfv grommunio:gromox /var/lib/grommunio-admin-api
 } >>"${LOGFILE}" 2>&1
 
 writelog "Enable fetchmail and configure"
