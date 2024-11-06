@@ -17,6 +17,7 @@ setup_repo() {
       exit 1
     fi
   fi
+  chown -Rfv _apt /etc/apt/keyrings 
   cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
@@ -24,6 +25,30 @@ Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
 Enabled: yes
+SOURCES
+
+  cat << SOURCES > /etc/apt/sources.list.d/grommunio-devel.sources
+Types: deb
+URIs: https://download.grommunio.com/devel/Debian_$DEB
+Suites: Debian_$DEB
+Components: main
+Signed-By: $kr
+Enabled: no
+SOURCES
+
+  cat << SOURCES > /etc/apt/sources.list.d/grommunio-supported.sources
+Types: deb
+URIs: https://download.grommunio.com/community/Debian_$DEB
+Suites: Debian_$DEB
+Components: main
+Signed-By: $kr
+Enabled: no
+SOURCES
+
+  cat << SOURCES > /etc/apt/auth.conf.d/grommunio-supported.sources
+machine download.grommunio.com
+login YOURUSERNAME
+password YOURPASSWORD
 SOURCES
 
 echo
