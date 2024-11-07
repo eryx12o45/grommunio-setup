@@ -775,11 +775,6 @@ CONFFILE
 cleanup() { rm -f "$CONFIG_FILE" ; }
 trap cleanup EXIT
 
-MBOP_OPTS=()
-if [ $SOFT_DELETE = "true" ]; then
-  MBOP_OPTS=(--soft)
-fi
-
 MYSQL_CMD="mysql --defaults-file=${CONFIG_FILE} ${MYSQL_PARAMS}"
 # shellcheck disable=SC2068
 if ${MYSQL_CMD}<<<"exit"&>/dev/null; then
@@ -941,11 +936,6 @@ CONFFILE
 
 cleanup() { rm -f "$CONFIG_FILE" ; }
 trap cleanup EXIT
-
-MBOP_OPTS=()
-if [ $SOFT_DELETE = "true" ]; then
-  MBOP_OPTS=(--soft)
-fi
 
 MYSQL_CMD="mysql --defaults-file=${CONFIG_FILE} ${MYSQL_PARAMS}"
 # shellcheck disable=SC2068
