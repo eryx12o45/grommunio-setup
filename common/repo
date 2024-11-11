@@ -4,7 +4,7 @@
 
 setup_repo() {
   local uri kr
-  grep -q bullseye /etc/os-release && DEB=11 || DEB=12
+  grep -q bullseye /etc/os-release && DEB=12 || DEB=13
   uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
@@ -17,7 +17,7 @@ setup_repo() {
       exit 1
     fi
   fi
-  chown -Rfv _apt /etc/apt/keyrings 
+  chown -Rfv _apt /etc/apt/keyrings
   cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
@@ -45,11 +45,25 @@ Signed-By: $kr
 Enabled: no
 SOURCES
 
-  cat << SOURCES > /etc/apt/auth.conf.d/grommunio-supported.sources
+  cat << AUTHCONF > /etc/apt/auth.conf.d/grommunio-supported.sources
 machine download.grommunio.com
 login YOURUSERNAME
 password YOURPASSWORD
-SOURCES
+AUTHCONF
+
+  cat << PINNING > /etc/apt/preferences.d/grommunio
+Package: *
+Pin: release o=grommunio, v=devel
+Pin-Priority: 50
+
+Package: *
+Pin: release o=grommunio, v=community
+Pin-Priority: 500
+
+Package: *
+Pin: release o=grommunio, v=supported
+Pin-Priority: 505
+PINNING
 
 echo
 echo -e " \x1b[36m▼\x1b[0m operation completed"
