@@ -4,7 +4,7 @@
 
 setup_repo() {
   local uri kr
-  grep -q bullseye /etc/os-release && DEB=12 || DEB=13
+  grep -q bookworm /etc/os-release && DEB=12 || DEB=13
   uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
