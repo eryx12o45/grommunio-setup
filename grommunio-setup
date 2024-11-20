@@ -26,6 +26,9 @@ if ! test -e "$LOGFILE"; then
   true >"$LOGFILE"
   chmod 0600 "$LOGFILE"
 fi
+if [ "$1" = "JUSTDOIT" ]; then
+  SKIPDIALOG=1
+fi
 
 apt-get() {
 if [ "$1" = "update" ]; then
@@ -1130,7 +1133,8 @@ systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
 
 writelog "Update sasauthd defaults"
-sed -i 's/START=no/START=yes/g' /etc/default/saslauthd
+#sed -i 's/START=no/START=yes/g' /etc/default/saslauthd
+echo 'START=yes' >> /etc/default/saslauthd
 sed -i 's/-c -m \/var\/run\/saslauthd/-r -c -m \/var\/run\/saslauthd/g' /etc/default/saslauthd
 systemctl stop saslauthd  >>"${LOGFILE}" 2>&1
 systemctl start saslauthd  >>"${LOGFILE}" 2>&1
