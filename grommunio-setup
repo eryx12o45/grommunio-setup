@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # SPDX-FileCopyrightText: 2022 grommunio GmbH
-# SPDX-FileCopyrightText: 2023 eryx12o45, crpb
+# SPDX-FileCopyrightText: 2023-2025 eryx12o45, crpb
 # Interactive grommunio setup
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -564,9 +564,6 @@ setconf /etc/gromox/mysql_adaptor.cfg mysql_username "${MYSQL_USER}"
 setconf /etc/gromox/mysql_adaptor.cfg mysql_password "${MYSQL_PASS}"
 setconf /etc/gromox/mysql_adaptor.cfg mysql_dbname "${MYSQL_DB}"
 setconf /etc/gromox/mysql_adaptor.cfg schema_upgrade "host:${FQDN}"
-
-# old?!
-#cp -vf /etc/gromox/mysql_adaptor.cfg /etc/gromox/adaptor.cfg >>"${LOGFILE}" 2>&1
 
 # use system-timezone
 TZ="$(readlink /etc/localtime)"
