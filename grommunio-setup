@@ -61,6 +61,7 @@ apt-get install dialog
 # shellcheck source=./common/dialogs
 . "${DATADIR}/common/dialogs"
 TMPF=$(mktemp /tmp/setup.sh.XXXXXXXX)
+trap 'rm -f "$TMPF"' EXIT
 
 # Prevent Apache-Installation
 cat <<END > /etc/apt/preferences.d/no-apache
