@@ -87,11 +87,11 @@ Pin-Priority: 50
 
 Package: *
 Pin: release o=grommunio, v=community
-Pin-Priority: 450
+Pin-Priority: 550
 
 Package: *
 Pin: release o=grommunio, v=supported
-Pin-Priority: 480
+Pin-Priority: 580
 PINNING
     fi
     echo
