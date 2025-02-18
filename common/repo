@@ -43,7 +43,6 @@ setup_repo() {
     rm -f "$krtemp"
     # Override .sources if they exist do be sure
     cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
->>>>>>> main
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
 Suites: Debian_$DEB
