@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # SPDX-FileCopyrightText: 2022 grommunio GmbH
-# SPDX-FileCopyrightText: 2023-2024 eryx12o45, crpb
+# SPDX-FileCopyrightText: 2023-2025 eryx12o45, crpb
 # Interactive grommunio setup
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -61,6 +61,7 @@ apt-get install dialog
 # shellcheck source=./common/dialogs
 . "${DATADIR}/common/dialogs"
 TMPF=$(mktemp /tmp/setup.sh.XXXXXXXX)
+trap 'rm -f "$TMPF"' EXIT
 
 # Prevent Apache-Installation
 cat <<END > /etc/apt/preferences.d/no-apache
