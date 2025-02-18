@@ -1,23 +1,43 @@
 #!/bin/bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # SPDX-FileCopyrightText: 2021 grommunio GmbH
+# SPDX-FileCopyrightText: 2023-2025 eryx12o45, crpb
 
 setup_repo() {
-  local uri kr
+  local uri kr count krtemp
   grep -q bookworm /etc/os-release && DEB=12 || DEB=13
   uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
   echo
   echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
   echo
   mkdir -p /etc/apt/keyrings
-  kr=/etc/apt/keyrings/download.grommunio.com.asc
-  if [ ! -f $kr ]; then
-    if [ ! "$(/usr/lib/apt/apt-helper download-file "${uri}" "${kr}")" ] ; then
+  kr=/etc/apt/keyrings/download.grommunio.com.gpg
+  krtemp=(mktemp)
+  while true; do
+    if [ ! -f $kr ]; then
+      curl -f -S -g -L -s -o "$krtemp" "$uri"
+      if gpg --fingerprint --import-options show-only --import "$krtemp"; then 
+        gpg --batch --yes --output "$kr" --dearmor "$krtemp" || return 1
+      fi
+    fi
+    if [ -f $kr ]; then
+      if gpg --with-colons --show-keys "$kr" |grep -q grommunio; then
+        break
+      else
+        rm -vf "$kr"
+        continue
+        count=$((count+1))
+      fi
+    fi
+    if [ $count -gt 3 ]; then
       echo -e "\x1b[36m▼\x1b[0m grommunio-setup is ending. Keyring couldn't be installed!"
       exit 1
     fi
-  fi
-  chown -Rfv _apt /etc/apt/keyrings
+  done
+  chown -Rfv root:root /etc/apt/keyrings
+  chmod -Rfv u=rwX,g=rX,o=rX /etc/apt/keyrings
+  rm -f "$krtemp"
+# Override .sources if they exist do be sure
   cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
@@ -38,32 +58,39 @@ SOURCES
 
   cat << SOURCES > /etc/apt/sources.list.d/grommunio-supported.sources
 Types: deb
-URIs: https://download.grommunio.com/community/Debian_$DEB
+URIs: https://download.grommunio.com/supported/Debian_$DEB
 Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
 Enabled: no
 SOURCES
 
-  cat << AUTHCONF > /etc/apt/auth.conf.d/grommunio-supported.sources
+# Don't override as we might have auth-data already set
+  if [ ! -f /etc/apt/auth.conf.d/grommunio-supported.conf ]; then
+    cat << AUTHCONF > /etc/apt/auth.conf.d/grommunio-supported.conf
 machine download.grommunio.com
 login YOURUSERNAME
 password YOURPASSWORD
 AUTHCONF
-
-  cat << PINNING > /etc/apt/preferences.d/grommunio
+  fi
+  chmod -Rfv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
+  if curl -sSfLq --ne 
+# Don't override as we might have different prioritie already set
+  if [ ! -f /etc/apt/preferences.d/grommunio ]; then
+    cat << PINNING > /etc/apt/preferences.d/grommunio
 Package: *
 Pin: release o=grommunio, v=devel
 Pin-Priority: 50
 
 Package: *
 Pin: release o=grommunio, v=community
-Pin-Priority: 500
+Pin-Priority: 450
 
 Package: *
 Pin: release o=grommunio, v=supported
-Pin-Priority: 505
+Pin-Priority: 480
 PINNING
+  fi
 
 echo
 echo -e " \x1b[36m▼\x1b[0m operation completed"
