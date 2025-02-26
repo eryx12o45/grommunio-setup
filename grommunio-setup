@@ -154,7 +154,7 @@ user_management >>"${LOGFILE}" 2>&1
 # shellcheck source=common/repo
 PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
   grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
-  grommunio-dav)
+  grommunio-dav grommunio-dbconf)
 . "${DATADIR}/common/repo"
 setup_repo
 writelog "Installing Grommunio-Packages"
