@@ -1135,8 +1135,10 @@ if ! grep -q START=yes /etc/default/saslauthd ; then
   sed -i '0,/^$/s//START=yes/' /etc/default/saslauthd
 fi
 sed -i '/^OPTIONS/ s/"-c -m \//"-r -c -m \//g' /etc/default/saslauthd
-systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
-systemctl try-start saslauthd  >>"${LOGFILE}" 2>&1
+if ! /lib/systemd/systemd-sysv-install is-enabled saslauthd; then
+  /lib/systemd/systemd-sysv-install enable saslauthd
+fi
+systemctl start saslauthd  >>"${LOGFILE}" 2>&1
 
 writelog "Fix log folder rights"
 {
