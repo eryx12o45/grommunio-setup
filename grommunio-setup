@@ -1131,10 +1131,10 @@ systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
 
 writelog "Update sasauthd defaults"
-#sed -i 's/START=no/START=yes/g' /etc/default/saslauthd
-echo 'START=yes' >> /etc/default/saslauthd
+if ! grep -q START=yes /etc/default/saslauthd ; then
+  sed -i '0,/^$/s//START=yes/' /etc/default/saslauthd
+fi
 sed -i '/^OPTIONS/ s/"-c -m \//"-r -c -m \//g' /etc/default/saslauthd
-systemctl stop saslauthd  >>"${LOGFILE}" 2>&1
 systemctl enable --now postfix.service >>"${LOGFILE}" 2>&1
 systemctl try-start saslauthd  >>"${LOGFILE}" 2>&1
 
