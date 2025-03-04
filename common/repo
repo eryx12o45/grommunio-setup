@@ -42,6 +42,7 @@ setup_repo() {
     chmod -Rfv u=rwX,g=rX,o=rX /etc/apt/keyrings
     rm -f "$krtemp"
     # Override .sources if they exist do be sure
+    # Only use one file from now on...
     cat << SOURCES > /etc/apt/sources.list.d/grommunio-community.sources
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
@@ -49,18 +50,14 @@ Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
 Enabled: yes
-SOURCES
 
-cat << SOURCES > /etc/apt/sources.list.d/grommunio-devel.sources
 Types: deb
 URIs: https://download.grommunio.com/devel/Debian_$DEB
 Suites: Debian_$DEB
 Components: main
 Signed-By: $kr
 Enabled: no
-SOURCES
 
-cat << SOURCES > /etc/apt/sources.list.d/grommunio-supported.sources
 Types: deb
 URIs: https://download.grommunio.com/supported/Debian_$DEB
 Suites: Debian_$DEB
@@ -70,14 +67,16 @@ Enabled: no
 SOURCES
 
 # Don't override as we might have auth-data already set
+# Switch to oneline to be compliant with grommunio-admin-configs..
+CREDENTIALS=username:password  # template
+[ -f '/etc/grommunio-admin-common/license/credentials.txt' ] && \
+	CREDENTIALS=$(cat /etc/grommunio-admin-common/license/credentials.txt)
 if [ ! -f /etc/apt/auth.conf.d/grommunio-supported.conf ]; then
     cat << AUTHCONF > /etc/apt/auth.conf.d/grommunio-supported.conf
-machine download.grommunio.com
-login YOURUSERNAME
-password YOURPASSWORD
+machine download.grommunio.com login ${CREDENTIALS%:*} password ${CREDENTIALS#*:}
 AUTHCONF
 fi
-chmod -Rfv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
+chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
     # Don't override as we might have different prioritie already set
     if [ ! -f /etc/apt/preferences.d/grommunio ]; then
         cat << PINNING > /etc/apt/preferences.d/grommunio
