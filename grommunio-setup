@@ -110,11 +110,27 @@ You can abort or delete all data and setup everything from scratch. If so, confi
   if [ "${DELCONFIRM}" != "removealldata" ]; then
     writelog "Aborted deletion after detected existing installation"
     exit 0
-  else
-    writelog "Deleting existing installation after confirmation"
-    echo "drop database grommunio;" | mysql
-    rm -rf /var/lib/gromox/user/* /var/lib/gromox/domain/* /var/lib/gromox/queue/* /etc/grommunio-common/ssl/* /etc/grommunio-common/setup_done
-  fi
+	else
+		writelog "Deleting existing installation after confirmation"
+		echo "drop database grommunio;" | mysql
+		# remove folders
+		rm -Rf /var/lib/gromox/* \
+			/etc/grommunio-common/ssl/* \
+			/etc/grommunio-common/setup_done \
+			/var/lib/grommunio-web/*
+
+		# recreate them..
+		mkdir -p /var/lib/gromox/{domain,user,queue/{cache,mess,save,timer}} \
+			/var/lib/grommunio-web/{session,tmp/session,sqlite-index}
+
+		# set permissions
+		touch /var/lib/gromox/queue/token.ipc
+		chown -Rf gromox:gromox /var/lib/gromox
+		chmod -Rf 770 /var/lib/gromox
+		chown -Rf groweb:groweb /var/lib/grommunio-web/{tmp,session}
+		chown -Rf groindex:groweb /var/lib/grommunio-web/sqlite-index
+		chmod -Rf 770 /var/lib/grommunio-web
+	fi
 fi
 
 memory_check() {
@@ -169,7 +185,8 @@ apt-get install -f
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
 systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 # fix folder permissions
-chown -Rfv groweb:groweb /var/lib/grommunio-web >>"${LOGFILE}" 2>&1
+chown -Rfv groweb:groweb /var/lib/grommunio-web/{tmp,session} >>"${LOGFILE}" 2>&1
+chown -Rfv groindex:groweb /var/lib/grommunio-web/sqlite-index >>"${LOGFILE}" 2>&1
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
