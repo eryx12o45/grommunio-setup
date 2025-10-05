@@ -1,5 +1,5 @@
 ### General Info
-Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian 12.
+Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian Trixie (13).
 
 Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/1166-debian-bookworm-12-grommunio-setup).
 
@@ -12,6 +12,7 @@ Please feel free to contribute either directly in Github or add your input [here
 git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
+* for Debian Bookworm(12) / checkout the branch named bookworm
 * for Debian Bullseye(11) / checkout the branch named bullseye
 
 ### Additions
