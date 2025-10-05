@@ -44,6 +44,7 @@ setup_repo() {
     # Override .sources if they exist do be sure
     # Only use one file from now on...
     cat << SOURCES > /etc/apt/sources.list.d/grommunio.sources
+# A pinning example can be found in /etc/apt/preferences.d/grommunio
 Types: deb
 URIs: https://download.grommunio.com/community/Debian_$DEB
 Suites: Debian_$DEB
@@ -81,7 +82,7 @@ chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
     if [ ! -f /etc/apt/preferences.d/grommunio ]; then
         cat << PINNING > /etc/apt/preferences.d/grommunio
 ## This is an exmaple if you need to mix in community or devel to supported
-## So you won't accidentaly install all packages from one repo
+## So you won't accidentaly install all packages from community by mistake
 # Package: *
 # Pin: release o=grommunio, v=devel
 # Pin-Priority: 50
