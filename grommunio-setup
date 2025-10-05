@@ -498,7 +498,7 @@ ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-comm
 chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 
 # check for os-release
-grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
+grep -q bullseye /etc/os-release && PHPVER=8.2 || PHPVER=8.4
 
 writelog "Config stage: enable all services"
 SERVICES=(redis@grommunio.service "php${PHPVER}-fpm.service" nginx.service
