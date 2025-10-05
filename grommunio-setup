@@ -1206,7 +1206,7 @@ mv /tmp/config.json /etc/grommunio-admin-common/config.json
 cat > /etc/grommunio-admin-api/conf.d/logs.yaml <<EOF
 logs:
   PHP fpm:
-    source: php8.2-fpm.service
+    source: php$PHPVER-fpm.service
   Antispam:
     source: rspamd.service
 EOF
@@ -1237,7 +1237,7 @@ options:
       - unit: gromox-timer.service
       - unit: gromox-zcore.service
       - unit: nginx.service
-      - unit: php8.2-fpm.service
+      - unit: php$PHPVER-fpm.service
       - unit: postfix.service
       - unit: redis@grommunio.service
       - unit: rspamd.service
