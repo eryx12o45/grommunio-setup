@@ -88,7 +88,7 @@ echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-sel
 SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix postfix-lmdb
   postfix-mysql php php-igbinary php-redis sqlite3 php php-fpm curl fetchmail
   rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin
-  jq firewalld clamav clamav-freshclam clamav-daemon python3-distutils
+  jq firewalld clamav clamav-freshclam clamav-daemon
   libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static gpg)
 apt-get install "${SYSTEM_PACKAGES[@]}"
 
