@@ -80,17 +80,23 @@ chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
     # Don't override as we might have different prioritie already set
     if [ ! -f /etc/apt/preferences.d/grommunio ]; then
         cat << PINNING > /etc/apt/preferences.d/grommunio
-Package: *
-Pin: release o=grommunio, v=devel
-Pin-Priority: 50
-
-Package: *
-Pin: release o=grommunio, v=community
-Pin-Priority: 550
-
-Package: *
-Pin: release o=grommunio, v=supported
-Pin-Priority: 580
+## This is an exmaple if you need to mix in community or devel to supported
+## So you won't accidentaly install all packages from one repo
+# Package: *
+# Pin: release o=grommunio, v=devel
+# Pin-Priority: 50
+# 
+# Package: *
+# Pin: release o=grommunio, v=community
+# Pin-Priority: 50
+# 
+# Package: grommunio-admin-api
+# Pin: release o=grommunio, v=community
+# Pin-Priority: 500
+# 
+# Package: *
+# Pin: release o=grommunio, v=supported
+# Pin-Priority: 500
 PINNING
     fi
     echo
