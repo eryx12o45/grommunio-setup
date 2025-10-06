@@ -15,14 +15,7 @@ git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grom
 * for Debian Bookworm(12) / checkout the branch named bookworm
 * for Debian Bullseye(11) / checkout the branch named bullseye
 
-### Additions
-#### Fix Grommunio Admin Live Status page
 ```
-https://raw.githubusercontent.com/crpb/grommunio/main/debian/alien8.sh
-```
-
-#### Use OCSP for ACME-CERT
-https://github.com/crpb/grommunio/blob/main/setup/nginx-ocsp.sh
 
 #### Configure additional relay host
 https://github.com/crpb/grommunio/tree/main/setup/postfix
@@ -30,10 +23,10 @@ https://github.com/crpb/grommunio/tree/main/setup/postfix
 #### Configure system mails
 ```
 apt-get install postix-pcre
-
 postconf smtp_generic_maps=pcre:/etc/postfix/generic
+
 printf "/root(.*)/\tgrommunio@%s" "$(grommunio-admin domain query domainname|head -n1)" >> /etc/postfix/generic
-OR
+# OR
 printf "/root@$(postconf -h myhostname)/\tgrommunio@%s\n" "$(grommunio-admin domain query domainname|head -n1)" >> /etc/postfix/generic
 
 printf "root:\tSERVERMAILS@SERVERMAILS.TLD\n" >> /etc/aliases
