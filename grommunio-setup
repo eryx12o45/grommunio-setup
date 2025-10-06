@@ -84,11 +84,11 @@ echo "Installing dependencies. This might take a while..."
 apt-get update
 apt-get dist-upgrade
 echo "postfix	postfix/mailname string $DOMAIN" | debconf-set-selections
-echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
+echo "postfix	postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
 SYSTEM_PACKAGES=(mariadb-server mariadb-client redis nginx postfix postfix-lmdb
   postfix-mysql php php-igbinary php-redis sqlite3 php php-fpm curl fetchmail
   rspamd certbot python3-certbot-nginx libsasl2-2 libsasl2-modules sasl2-bin
-  jq firewalld clamav clamav-freshclam clamav-daemon python3-distutils
+  jq firewalld clamav clamav-freshclam clamav-daemon
   libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static gpg)
 apt-get install "${SYSTEM_PACKAGES[@]}"
 
@@ -110,11 +110,27 @@ You can abort or delete all data and setup everything from scratch. If so, confi
   if [ "${DELCONFIRM}" != "removealldata" ]; then
     writelog "Aborted deletion after detected existing installation"
     exit 0
-  else
-    writelog "Deleting existing installation after confirmation"
-    echo "drop database grommunio;" | mysql
-    rm -rf /var/lib/gromox/user/* /var/lib/gromox/domain/* /var/lib/gromox/queue/* /etc/grommunio-common/ssl/* /etc/grommunio-common/setup_done
-  fi
+	else
+		writelog "Deleting existing installation after confirmation"
+		echo "drop database grommunio;" | mysql
+		# remove folders
+		rm -Rf /var/lib/gromox/* \
+			/etc/grommunio-common/ssl/* \
+			/etc/grommunio-common/setup_done \
+			/var/lib/grommunio-web/*
+
+		# recreate them..
+		mkdir -p /var/lib/gromox/{domain,user,queue/{cache,mess,save,timer}} \
+			/var/lib/grommunio-web/{session,tmp/session,sqlite-index}
+
+		# set permissions
+		touch /var/lib/gromox/queue/token.ipc
+		chown -Rf gromox:gromox /var/lib/gromox
+		chmod -Rf 770 /var/lib/gromox
+		chown -Rf groweb:groweb /var/lib/grommunio-web/{tmp,session}
+		chown -Rf groindex:groweb /var/lib/grommunio-web/sqlite-index
+		chmod -Rf 770 /var/lib/grommunio-web
+	fi
 fi
 
 memory_check() {
@@ -152,9 +168,9 @@ user_management() {
 user_management >>"${LOGFILE}" 2>&1
 
 # shellcheck source=common/repo
-PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index \
-  grommunio-admin-common grommunio-common grommunio-web grommunio-sync \
-  grommunio-dav grommunio-dbconf)
+PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index
+  grommunio-admin-common grommunio-common grommunio-web grommunio-sync
+  grommunio-dav grommunio-dbconf nginx-module-vts)
 . "${DATADIR}/common/repo"
 setup_repo
 writelog "Installing Grommunio-Packages"
@@ -169,7 +185,8 @@ apt-get install -f
 echo "d /run/php-fpm 0755 www-data gromox - -" >/etc/tmpfiles.d/run-php-fpm.conf
 systemd-tmpfiles --create >>"${LOGFILE}" 2>&1
 # fix folder permissions
-chown -Rfv groweb:groweb /var/lib/grommunio-web >>"${LOGFILE}" 2>&1
+chown -Rfv groweb:groweb /var/lib/grommunio-web/{tmp,session} >>"${LOGFILE}" 2>&1
+chown -Rfv groindex:groweb /var/lib/grommunio-web/sqlite-index >>"${LOGFILE}" 2>&1
 
 MYSQL_HOST="localhost"
 MYSQL_USER="grommunio"
@@ -498,7 +515,7 @@ ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-comm
 chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 
 # check for os-release
-grep -q bullseye /etc/os-release && PHPVER=7.4 || PHPVER=8.2
+grep -q bullseye /etc/os-release && PHPVER=8.2 || PHPVER=8.4
 
 writelog "Config stage: enable all services"
 SERVICES=(redis@grommunio.service "php${PHPVER}-fpm.service" nginx.service
@@ -1099,7 +1116,6 @@ postconf -e \
   smtpd_tls_key_file="${SSL_KEY_T}" \
   smtpd_tls_received_header=yes \
   smtpd_tls_session_cache_timeout=3600s \
-  smtpd_use_tls=yes \
   smtpd_tls_protocols='!SSLv2,!SSLv3,!TLSv1,!TLSv1.1' \
   smtpd_tls_mandatory_protocols='!SSLv2,!SSLv3,!TLSv1,!TLSv1.1' \
   tls_random_source=dev:/dev/urandom \
@@ -1189,7 +1205,7 @@ mv /tmp/config.json /etc/grommunio-admin-common/config.json
 cat > /etc/grommunio-admin-api/conf.d/logs.yaml <<EOF
 logs:
   PHP fpm:
-    source: php8.2-fpm.service
+    source: php$PHPVER-fpm.service
   Antispam:
     source: rspamd.service
 EOF
@@ -1220,7 +1236,7 @@ options:
       - unit: gromox-timer.service
       - unit: gromox-zcore.service
       - unit: nginx.service
-      - unit: php8.2-fpm.service
+      - unit: php$PHPVER-fpm.service
       - unit: postfix.service
       - unit: redis@grommunio.service
       - unit: rspamd.service
