@@ -8,14 +8,13 @@ Please feel free to contribute either directly in Github or add your input [here
 * install git
 
 ### Usage
+
 ```
 git clone https://github.com/eryx12o45/grommunio-setup.git /usr/local/share/grommunio-setup
 /usr/local/share/grommunio-setup/grommunio-setup
 ```
 * for Debian Bookworm(12) / checkout the branch named bookworm
 * for Debian Bullseye(11) / checkout the branch named bullseye
-
-```
 
 #### Configure additional relay host
 https://github.com/crpb/grommunio/tree/main/setup/postfix
