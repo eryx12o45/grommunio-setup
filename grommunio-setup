@@ -478,32 +478,14 @@ progress 0
 progress 10
 writelog "Config redis for Grommunio"
 {
-mkdir -p /var/lib/redis/default
-chown redis:redis -R /var/lib/redis
-systemctl disable --now redis-server.service
-}  >>"${LOGFILE}" 2>&1
-cat >"/etc/systemd/system/redis@grommunio.service" <<EOF
-[Unit]
-Description=Redis instance: %i
-After=network.target
-PartOf=redis.target
+  systemctl disable --now redis-server.service
+  [ -d /var/lib/redis ] && su -m redis -c 'mkdir --mode=0750 -vp /var/lib/redis/default'
+  env --chdir=/etc/redis ln -svf {,redis-}grommunio.conf
+  systemctl enable --now redis-server@grommunio.conf
+ }  >>"${LOGFILE}" 2>&1
 
-[Service]
-Type=notify
-User=redis
-Group=redis
-PrivateTmp=true
-PIDFile=/run/redis/%i.pid
-ExecStart=/usr/bin/redis-server /etc/redis/%i.conf
-LimitNOFILE=10240
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target redis.target
-EOF
-
-systemctl daemon-reload >>"${LOGFILE}" 2>&1
-
+progress 15
+writelog "Configure SSL Certificates for Grommunio"
 cat >/etc/grommunio-common/nginx/ssl_certificate.conf <<EOF
 ssl_certificate ${SSL_BUNDLE_T};
 ssl_certificate_key ${SSL_KEY_T};
@@ -515,7 +497,7 @@ ln -s /etc/grommunio-common/nginx/ssl_certificate.conf /etc/grommunio-admin-comm
 chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 
 # check for os-release
-grep -q bullseye /etc/os-release && PHPVER=8.2 || PHPVER=8.4
+grep -q bookworm /etc/os-release && PHPVER=8.2 || PHPVER=8.4
 
 writelog "Config stage: enable all services"
 SERVICES=(redis@grommunio.service "php${PHPVER}-fpm.service" nginx.service
