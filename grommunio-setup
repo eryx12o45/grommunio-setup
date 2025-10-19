@@ -481,7 +481,7 @@ writelog "Config redis for Grommunio"
   systemctl disable --now redis-server.service
   [ -d /var/lib/redis ] && su -m redis -c 'mkdir --mode=0750 -vp /var/lib/redis/default'
   env --chdir=/etc/redis ln -svf {,redis-}grommunio.conf
-  systemctl enable --now redis-server@grommunio.conf
+  systemctl enable --now redis-server@grommunio
  }  >>"${LOGFILE}" 2>&1
 
 progress 15
