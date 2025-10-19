@@ -500,7 +500,7 @@ chown -fv gromox:gromox /etc/grommunio-common/ssl/* >>"${LOGFILE}" 2>&1
 PHPVER="$(apt-cache show php |awk '/^Depends:/ {sub("php","", $2);print$2}')"
 
 writelog "Config stage: enable all services"
-SERVICES=(redis@grommunio.service "php${PHPVER}-fpm.service" nginx.service
+SERVICES=(redis-server@grommunio.service "php${PHPVER}-fpm.service" nginx.service
 $(systemctl list-unit-files 'grom*' --no-legend|cut -d\  -f1 |grep -v snapshot)
   clamav-freshclam.service clamav-daemon.service rspamd.service)
 # shellcheck disable=SC2068
@@ -1220,7 +1220,7 @@ options:
       - unit: nginx.service
       - unit: php$PHPVER-fpm.service
       - unit: postfix.service
-      - unit: redis@grommunio.service
+      - unit: redis-server@grommunio.service
       - unit: rspamd.service
 EOF
 
