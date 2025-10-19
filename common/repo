@@ -5,8 +5,9 @@
 
 setup_repo() {
     local uri kr count krtemp
-    grep -q bookworm /etc/os-release && DEB=12 || DEB=13
-    uri='https://download.grommunio.com/RPM-GPG-KEY-grommunio'
+    . /etc/os-release
+    mirror=https://download.grommunio.com
+    uri="$mirror"/RPM-GPG-KEY-grommunio
     echo
     echo -e " \x1b[36m▼\x1b[0m grommunio-setup is updating the system"
     echo
@@ -19,8 +20,8 @@ setup_repo() {
             if gpg --fingerprint --import-options show-only --import "$krtemp"
             then
                 if ! gpg --batch --yes --output "$kr" --dearmor "$krtemp";
-                    then
-                        return 1
+                then
+                    return 1
                 fi
             fi
         fi
@@ -41,46 +42,57 @@ setup_repo() {
     chown -Rfv root:root /etc/apt/keyrings
     chmod -Rfv u=rwX,g=rX,o=rX /etc/apt/keyrings
     rm -f "$krtemp"
-    # Override .sources if they exist do be sure
-    # Only use one file from now on...
+
+    # Don't override as we might have auth-data already set.
+    # Switch to oneline to be compliant with grommunio-admin-configs..
+    CREDENTIALS=username:password  # template
+    # Do we already have credentials present in the system?
+    CREDENTIALS_FILE=/etc/grommunio-admin-common/license/credentials.txt
+    APTAUTHCONF=/etc/apt/auth.conf.d/grommunio-supported.conf
+    if [ -f "$CREDENTIALS_FILE" ] && [ ! -f "$APTAUTHCONF" ]; then
+        CREDENTIALS=$(cat "$CREDENTIALS_FILE")
+        cat << AUTHCONF > "$APTAUTHCONF"
+machine download.grommunio.com login ${CREDENTIALS%:*} password ${CREDENTIALS#*:}
+AUTHCONF
+    fi
+    # This will work if we have valid credentials set above
+    testfile=$(mktemp)
+    if /usr/lib/apt/apt-helper download-file "$mirror"/supported/ "$testfile" >/dev/null 2>&1; then
+        ENABLE_SUPPORTED=yes
+        ENABLE_COMMUNITY=no
+    else
+        ENABLE_SUPPORTED=no
+        ENABLE_COMMUNITY=yes
+    fi
+    chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
+
+    # Don't override as we might have different sources set
     cat << SOURCES > /etc/apt/sources.list.d/grommunio.sources
 # A pinning example can be found in /etc/apt/preferences.d/grommunio
 Types: deb
-URIs: https://download.grommunio.com/community/Debian_$DEB
-Suites: Debian_$DEB
+URIs: https://download.grommunio.com/community/Debian_$VERSION_ID
+Suites: Debian_$VERSION_ID
 Components: main
 Signed-By: $kr
-Enabled: yes
+Enabled: $ENABLE_COMMUNITY
 
 Types: deb
-URIs: https://download.grommunio.com/devel/Debian_$DEB
-Suites: Debian_$DEB
+URIs: https://download.grommunio.com/devel/Debian_$VERSION_ID
+Suites: Debian_$VERSION_ID
 Components: main
 Signed-By: $kr
 Enabled: no
 
 Types: deb
-URIs: https://download.grommunio.com/supported/Debian_$DEB
-Suites: Debian_$DEB
+URIs: https://download.grommunio.com/supported/Debian_$VERSION_ID
+Suites: Debian_$VERSION_ID
 Components: main
 Signed-By: $kr
-Enabled: no
+Enabled: $ENABLE_SUPPORTED
 SOURCES
 
-# Don't override as we might have auth-data already set.
-# Switch to oneline to be compliant with grommunio-admin-configs..
-CREDENTIALS=username:password  # template
-[ -f '/etc/grommunio-admin-common/license/credentials.txt' ] && \
-	CREDENTIALS=$(cat /etc/grommunio-admin-common/license/credentials.txt)
-if [ ! -f /etc/apt/auth.conf.d/grommunio-supported.conf ]; then
-    cat << AUTHCONF > /etc/apt/auth.conf.d/grommunio-supported.conf
-machine download.grommunio.com login ${CREDENTIALS%:*} password ${CREDENTIALS#*:}
-AUTHCONF
-fi
-chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
-    # Don't override as we might have different prioritie already set
-    if [ ! -f /etc/apt/preferences.d/grommunio ]; then
-        cat << PINNING > /etc/apt/preferences.d/grommunio
+if [ ! -f /etc/apt/preferences.d/grommunio ]; then
+    cat << PINNING > /etc/apt/preferences.d/grommunio
 ## This is an exmaple if you need to mix in community or devel to supported
 ## So you won't accidentaly install all packages from community by mistake
 # Package: *
@@ -99,11 +111,11 @@ chmod -fv u=rw,g=r,o-rwx /etc/apt/auth.conf.d/grommunio-supported.conf
 # Pin: release o=grommunio, v=supported
 # Pin-Priority: 500
 PINNING
-    fi
-    echo
-    echo -e " \x1b[36m▼\x1b[0m operation completed"
-    echo
-    # keep visual output on the screen for a glimpse so admin can decide
-    # if the logfile needs to be inspected.
-    sleep 1
+fi
+echo
+echo -e " \x1b[36m▼\x1b[0m operation completed"
+echo
+# keep visual output on the screen for a glimpse so admin can decide
+# if the logfile needs to be inspected.
+sleep 1
 }
