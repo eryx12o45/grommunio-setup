@@ -1,7 +1,7 @@
 ### General Info
 Installation script for Grommunio Groupware (https://www.grommunio.com) on Debian Trixie (13).
 
-Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/1166-debian-bookworm-12-grommunio-setup).
+Please feel free to contribute either directly in Github or add your input [here](https://community.grommunio.com/d/2325-debian-trixie-13).
 
 ### Requirements
 * enable ipv6 on your system before starting
