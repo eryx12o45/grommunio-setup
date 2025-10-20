@@ -370,8 +370,8 @@ choose_ssl_selfprovided() {
   writelog "Dialog: data for self-provided TLS cert"
   dialog --no-mouse --colors --backtitle "grommunio Setup" --title "TLS certificate (self-provided)" --ok-label "Submit" \
     --form "Enter the paths to the TLS certificates" 0 0 0 \
-    "PEM encoded certificate bundle:  " 1 1 "${SSL_BUNDLE}" 1 35 35 0 \
-    "PEM encoded private key:         " 2 1 "${SSL_KEY}" 2 35 35 0 2>"${TMPF}"
+    "PEM encoded certificate bundle:  " 1 1 "${SSL_BUNDLE}" 1 35 120 0 \
+    "PEM encoded private key:         " 2 1 "${SSL_KEY}" 2 35 120 0 2>"${TMPF}"
   dialog_exit $?
 
 }
