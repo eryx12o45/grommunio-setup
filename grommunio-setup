@@ -12,6 +12,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 CFG_FILE='/etc/grommunio-setup/grommunio-setup.conf'
+PKGED_CFG_FILE='/etc/grommunio-setup/packaged.conf'
 PROGNAME=`basename "$0"`
 
 # Process command line arguments
@@ -42,6 +43,8 @@ eval set -- "$OPTS"
 # setable settings here
 NO_APT_SETUP=0
 [ -e "$CFG_FILE" ] && . "$CFG_FILE"
+# override various settings for packaged setup script
+[ -e "$PKGED_CFG_FILE" ] && . "$PKGED_CFG_FILE"
 # Unsettable settings here
 # Process the options
 while true; do
