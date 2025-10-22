@@ -94,3 +94,13 @@ get_relayhost(){
   dialog_exit $?
 
 }
+
+apt_already_setup_notice ()
+{
+
+  dialog --no-mouse --colors --clear --backtitle "grommunio Setup" \
+         --title "Apt already setup" \
+	 --msgbox 'It looks like a grommunio apt respository is already defined. Clear these settings, or use the --no-apt-setup flag to run grommunio-setup.' 0 0
+  dialog_exit $?
+
+}

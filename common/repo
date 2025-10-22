@@ -5,6 +5,17 @@
 
 setup_repo() {
     local uri kr count krtemp
+
+    # Check if ther eare already grommunio apt repos defined
+    RELEASE_CODENAME=$(lsb_release -sc)
+    SOURCES_FOUND=0
+    PATTERN='^[^#]+download\.grommunio\.com'
+    [ -e /etc/apt/sources.list ] && grep -qP "$PATTERN" /etc/apt/sources.list && SOURCES_FOUND=1
+    grep -qPr "$PATTERN" /etc/apt/sources.list.d && SOURCES_FOUND=1
+    if [ $SOURCES_FOUND -gt 0 ]; then
+        return 2
+    fi
+
     . /etc/os-release
     mirror=https://download.grommunio.com
     uri="$mirror"/RPM-GPG-KEY-grommunio
@@ -118,4 +129,5 @@ echo
 # keep visual output on the screen for a glimpse so admin can decide
 # if the logfile needs to be inspected.
 sleep 1
+return 0
 }

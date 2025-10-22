@@ -8,7 +8,69 @@
 # Interactive grommunio setup
 
 if [ "$(id -u)" -ne 0 ]; then
-      exec sudo "${BASH_SOURCE[0]}"
+  exec sudo "${BASH_SOURCE[0]}"
+fi
+
+CFG_FILE='/etc/grommunio-setup/grommunio-setup.conf'
+PROGNAME=`basename "$0"`
+
+# Process command line arguments
+USAGE="Usage: $PROGNAME [-ahx]"
+usage () {
+  echo "$USAGE"  1>&2
+  exit 2
+}
+
+usage_full () {
+  echo "$USAGE"  1>&2
+  echo "" 1>&2
+  echo "    -a    --apt-setup     Set up apt" 1>&2
+  echo "    -h    --help          This help" 1>&2
+  echo "    -x    --no-apt-setup  Don't set up apt" 1>&2
+  echo "" 1>&2
+  exit 2
+}
+
+OPTS=$(getopt -o ahx -l apt-setup,help,no-apt-setup -n "$PROGNAME" -- "$@")
+if [ $? -ne 0 ]; then
+  echo "${PROGNAME}: Failed to parse options." 1>&2
+  exit 2
+fi
+# Reset the positional parameters to the parsed options
+eval set -- "$OPTS"
+
+# setable settings here
+NO_APT_SETUP=0
+[ -e "$CFG_FILE" ] && . "$CFG_FILE"
+# Unsettable settings here
+# Process the options
+while true; do
+  case "$1" in
+    -a | --apt-setup)
+      NO_APT_SETUP=0
+      shift
+      ;;
+    -h | --help)
+      usage_full
+      shift
+      ;;
+    -x | --no-apt-setup)
+      NO_APT_SETUP=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "${PROGNAME}: Internal error!"
+      exit 2
+      ;;
+  esac
+done
+
+if [ $# -ne 0 ]; then
+	usage
 fi
 
 export DEBIAN_FRONTEND=noninteractive
@@ -25,9 +87,6 @@ LOGFILE="/var/log/grommunio-setup.log"
 if ! test -e "$LOGFILE"; then
   true >"$LOGFILE"
   chmod 0600 "$LOGFILE"
-fi
-if [ "$1" = "JUSTDOIT" ]; then
-  SKIPDIALOG=1
 fi
 
 apt-get() {
@@ -106,17 +165,17 @@ You can abort or delete all data and setup everything from scratch. If so, confi
 \Z1If you continue, ALL data wil be removed!\Z1' \
     0 0 3>&1 1>&2 2>&3)
   dialog_exit $?
-
   if [ "${DELCONFIRM}" != "removealldata" ]; then
     writelog "Aborted deletion after detected existing installation"
     exit 0
 	else
 		writelog "Deleting existing installation after confirmation"
 		echo "drop database grommunio;" | mysql
-		# remove folders
+		# remove folders etc
 		rm -Rf /var/lib/gromox/* \
 			/etc/grommunio-common/ssl/* \
 			/etc/grommunio-common/setup_done \
+			/etc/apt/sources.list.d/grommunio.sources \
 			/var/lib/grommunio-web/*
 
 		# recreate them..
@@ -172,7 +231,15 @@ PACKAGES=(gromox grommunio-admin-api grommunio-admin-web grommunio-index
   grommunio-admin-common grommunio-common grommunio-web grommunio-sync
   grommunio-dav grommunio-dbconf nginx-module-vts)
 . "${DATADIR}/common/repo"
-setup_repo
+if [ $NO_APT_SETUP -eq 0 ]; then
+  setup_repo
+  if [ $? -ne 0 ]; then
+    writelog "Exiting - trying to set up apt repos when already defined"
+    apt_already_setup_notice
+    clear
+    exit 2
+  fi
+fi
 writelog "Installing Grommunio-Packages"
 apt-get update
 # reinstall in case of "removealldata"
