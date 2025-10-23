@@ -5,6 +5,17 @@
 
 setup_repo() {
     local uri kr count krtemp
+
+    # Check if ther eare already grommunio apt repos defined
+    RELEASE_CODENAME=$(lsb_release -sc)
+    SOURCES_FOUND=0
+    PATTERN='^[^#]+download\.grommunio\.com'
+    [ -e /etc/apt/sources.list ] && grep -qP "$PATTERN" /etc/apt/sources.list && SOURCES_FOUND=1
+    grep -qPr "$PATTERN" /etc/apt/sources.list.d && SOURCES_FOUND=1
+    if [ $SOURCES_FOUND -gt 0 ]; then
+        return 2
+    fi
+
     . /etc/os-release
     mirror=https://download.grommunio.com
     uri="$mirror"/RPM-GPG-KEY-grommunio
@@ -118,4 +129,64 @@ echo
 # keep visual output on the screen for a glimpse so admin can decide
 # if the logfile needs to be inspected.
 sleep 1
+return 0
 }
+
+repos_usage () {
+        echo "$USAGE"  1>&2
+        exit 2
+}
+
+repos_usage_full () {
+        echo "$USAGE"  1>&2
+        echo "" 1>&2
+        echo "    -f        force overwrite" 1>&2
+        echo "    -h        This help" 1>&2
+        exit 2
+}
+
+repos_main () {
+	PROGNAME=`basename "$0"`
+	USAGE="Usage: $PROGNAME [-h]"
+
+	# Process command line arguments
+	OPTIND=1
+	while getopts h F; do
+		case $F in
+		h)
+			repos_usage_full
+			;;
+		\?)
+			repos_usage
+			;;
+		esac
+	done
+	shift $(( OPTIND - 1 ))
+	if [ $# != 0 ]; then
+		repos_usage
+	fi
+
+	# bail out if we are not root
+	if [ "`id -un`" != "root" ] ; then
+		echo 1>&2
+		echo "  `basename $0`: you must be 'root' to run this command." 1>&2
+		echo 1>&2
+		exit 1
+	fi
+
+	setup_repo
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		echo "${PROGNAME}: grommunio apt repository definitions already exist"
+		exit $RETVAL
+	fi
+
+	exit 0
+}
+
+# Execute if stand alone
+case "$0" in
+	*grommunio-setup-repos)
+		repos_main "$@"
+		;;
+esac
