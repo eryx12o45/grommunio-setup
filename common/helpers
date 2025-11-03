@@ -87,14 +87,14 @@ setup_done() {
 
 grommunio Setup has successfully completed.
 
-You can now login to grommunio admin-web UI at http://${FQDN}:8080 with
+You can now login to grommunio admin-web UI at http://${FQDN}:8443 with
 
   Username: admin
   Password: ${ADMIN_PASS}
 
 If you have created a Full CA Certificate during the process, you can download and install it from
 
-  http://${FQDN}:8080/rootCA.crt
+  http://${FQDN}:8443/rootCA.crt
 
 During the process, grommunio Setup has created an installation log which you may copy to a secure location or delete if not required anymore at
 
